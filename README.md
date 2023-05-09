@@ -24,6 +24,7 @@ since the position of the pieces are in 1 dimension, you can split the data with
 
 ### login details
 Username: kamil
+
 Password: 1234
 
 these username and passwords are not stored securely.
