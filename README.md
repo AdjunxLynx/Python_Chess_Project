@@ -31,7 +31,7 @@ Username: kamil
 
 Password: 1234
 
-<img width="719" alt="image" src="https://github.com/AdjunxLynx/Python_Chess_Project/assets/117390288/ee901992-8ad2-427e-8b2f-be2452055bd1">
+<img width="719" alt="image" src="https://github.com/AdjunxLynx/Python_Chess_Project/assets/117390288/d77c1b75-b20e-4ac4-9e10-f1befc6203fb">
 
 these username and passwords are not stored securely.
 If i were to ensure secure password, I would not upload to github and i would also hash them and read them through a safe function in the python script
