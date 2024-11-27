@@ -16,7 +16,7 @@ def measure_time(func):
 class Chess():
     import pygame
 
-    def __init__(self, dimensions=960, fps=30):
+    def __init__(self, dimensions=960, fps=9999999):
         self.event_list = None
         self.piece_image = None
         self.mouse_x, self.mouse_y = None, None
@@ -301,777 +301,150 @@ class Chess():
                     #  print("Knight")
                     return "Knight"
 
-    def highlighted(self, selected, Turn):
-        if selected is None:
-            piece_name = "Null"
-            piece_colour = "Null"
-            life = "dead"
-        else:
-            # Finds the values for colour, name and life situation
-            piece_colour = self.board[selected][0]
-            piece_name = self.board[selected][1]
-            life = self.board[selected][5]
+    def emulate_position(self, selected, offset):
+        new_position = selected + offset
+        if 0 <= new_position < 64:
+            return new_position
+        return None
 
-        if selected is None:
+    def highlight_rook(self, selected):
+        directions = [8, -8, 1, -1]  # down, up, right, left
+        for direction in directions:
+            for i in range(1, 8):
+                new_position = self.emulate_position(selected, direction * i)
+                if new_position is None:
+                    break
+                piece = self.board[new_position]
+                if piece[0] == "Null":
+                    pygame.draw.circle(self.game_display, self.cyan, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+                elif piece[0] != self.Turn:
+                    pygame.draw.circle(self.game_display, self.red, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+                    break
+                else:
+                    break
+
+    def highlight_pawn(self, selected, piece_colour):
+        direction = -8 if piece_colour == "White" else 8
+        start_row = 6 if piece_colour == "White" else 1
+        try:
+            if selected // 8 == start_row:
+                if self.board[selected + direction][1] == "Null" and self.board[selected + 2 * direction][1] == "Null":
+                    for offset in [direction, 2 * direction]:
+                        new_position = self.emulate_position(selected, offset)
+                        if new_position is not None:
+                            pygame.draw.circle(self.game_display, self.cyan, (
+                                (selected % 8 * self.boxL) + 20 + self.boxL / 2,
+                                (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                               self.circle_radius)
+
+            if self.board[selected + direction][1] == "Null":
+                new_position = self.emulate_position(selected, direction)
+                if new_position is not None:
+                    pygame.draw.circle(self.game_display, self.cyan, (
+                        (selected % 8 * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+
+            for capture_offset in [-1, 1]:
+                new_position = self.emulate_position(selected, direction + capture_offset)
+                if new_position is not None and self.board[new_position][0] != self.Turn and self.board[new_position][
+                    0] != "Null":
+                    pygame.draw.circle(self.game_display, self.red, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+        except IndexError:
             pass
 
-        elif life == "life":
-            if piece_colour == self.Turn:
-                if piece_name == "Rook":
-                    for i in range(1, 8):  # ###### highlights rook downwards. Working
+    def highlight_bishop(self, selected):
+        directions = [9, -9, 7, -7]  # up-right, down-left, up-left, down-right
+        for direction in directions:
+            for i in range(1, 8):
+                new_position = self.emulate_position(selected, direction * i)
+                if new_position is None:
+                    break
+                piece = self.board[new_position]
+                if piece[0] == "Null":
+                    pygame.draw.circle(self.game_display, self.cyan, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+                elif piece[0] != self.Turn:
+                    pygame.draw.circle(self.game_display, self.red, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+                    break
+                else:
+                    break
 
-                        scan_vertical = (8 * i)
-                        skip = False
-                        if selected + scan_vertical > 63:
-                            skip = True
-                        if not skip:
-                            if self.board[selected + scan_vertical][0] == "Null":  # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan, (
-                                    (self.selected_to_x_y(selected)[0] * self.boxL) + 20 + self.boxL / 2,
-                                    (i * self.boxL + 20 + self.selected_to_x_y(selected)[
-                                        1] * self.boxL + self.boxL / 2)),
-                                                   self.circle_radius)
-                            elif self.board[selected + scan_vertical][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    (self.selected_to_x_y(selected)[0] * self.boxL) + 20 + self.boxL / 2,
-                                    (i * self.boxL + 20 + self.selected_to_x_y(selected)[
-                                        1] * self.boxL + self.boxL / 2)),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected + scan_vertical][0] == self.Turn:
-                                break
+    def highlight_queen(self, selected):
+        self.highlight_rook(selected)
+        self.highlight_bishop(selected)
 
-                    for i in range(1, 8):  # ###### highlights rook upwards
+    def highlight_king(self, selected):
+        offsets = [-9, -8, -7, -1, 1, 7, 8, 9]
+        for offset in offsets:
+            new_position = self.emulate_position(selected, offset)
+            if new_position is not None:
+                piece = self.board[new_position]
+                if piece[0] == "Null":
+                    pygame.draw.circle(self.game_display, self.cyan, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+                elif piece[0] != self.Turn:
+                    pygame.draw.circle(self.game_display, self.red, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
 
-                        scan_vertical = (8 * i)
-                        skip = False
-                        if selected - scan_vertical < 0:
-                            skip = True
-                        if not skip:
-                            if self.board[selected - scan_vertical][0] == "Null":
-                                # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL - self.boxL * i + self.boxL / 2 + 20),
-                                                   self.circle_radius)
-                            elif self.board[selected - scan_vertical][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL - self.boxL * i + self.boxL / 2 + 20),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - scan_vertical][0] == self.Turn:
-                                break
+    def highlight_knight(self, selected):
+        offsets = [-17, -15, -10, -6, 6, 10, 15, 17]
+        for offset in offsets:
+            new_position = self.emulate_position(selected, offset)
+            if new_position is not None:
+                piece = self.board[new_position]
+                if piece[0] == "Null":
+                    pygame.draw.circle(self.game_display, self.cyan, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
+                elif piece[0] != self.Turn:
+                    pygame.draw.circle(self.game_display, self.red, (
+                        (self.selected_to_x_y(new_position)[0] * self.boxL) + 20 + self.boxL / 2,
+                        (self.selected_to_x_y(new_position)[1] * self.boxL) + 20 + self.boxL / 2),
+                                       self.circle_radius)
 
-                    for i in range(1, 8):  # ### highlights rook to the left
-                        skip = False
-                        if self.selected_to_x_y(selected - i)[0] < 0:
-                            skip = True
-                        if not skip:
-                            if self.board[selected - i][0] == "Null":
-                                # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL - self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected - i][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL - self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - i][0] == self.Turn:
-                                break
+    def highlighted(self, selected, Turn):
+        if selected is None:
+            return
 
-                    for i in range(1, 8):  # ##### highlights rook to the right
-                        skip = False
-                        if self.selected_to_x_y(selected + i)[0] == 0 or self.selected_to_x_y(selected + i)[0] > 7:
-                            skip = True
+        piece_colour = self.board[selected][0]
+        piece_name = self.board[selected][1]
+        life = self.board[selected][5]
 
-                        if self.selected_to_x_y(selected + i)[0] < self.selected_to_x_y(selected)[0]:
-                            skip = True
+        if life != "life" or piece_colour != self.Turn:
+            return
 
-                        if not skip:
-                            if self.board[selected + i][0] == "Null":
-                                # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL + self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected + i][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL + self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected + i][0] == self.Turn:
-                                break
-
-                if piece_name == "Pawn":  # ################################################### done i believe
-                    # print("Pawn Highlighted")
-                    if piece_colour == "White":
-                        try:
-                            if selected // 8 == 6:
-                                if self.board[selected - 8][1] == "Null" and self.board[selected - 16][1] == "Null":
-                                    # print("double move possible")
-                                    pygame.draw.circle(self.game_display, self.cyan,
-                                                       (selected % 8 * self.boxL + 20 + self.boxL / 2,
-                                                        self.selected_to_x_y(selected)[1] *
-                                                        115 + 20 - self.boxL + self.boxL / 2), self.circle_radius)
-                                    pygame.draw.circle(self.game_display, self.cyan,
-                                                       (selected % 8 * self.boxL + 20 + self.boxL / 2,
-                                                        ((self.selected_to_x_y(selected)[1]) - 1) *
-                                                        self.boxL + 20 - self.boxL + self.boxL / 2), self.circle_radius)
-                                    self.x_y_to_selected(self.selected_to_x_y(selected)[0],
-                                                              self.selected_to_x_y(selected)[1] + 1)
-
-                            if self.board[selected - 8][1] == "Null":
-
-                                # print ("Space in front available ")
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   (selected % 8 * self.boxL + 20 + self.boxL / 2,
-                                                    self.selected_to_x_y(selected)[1] *
-                                                    self.boxL + 20 - self.boxL + self.boxL / 2), self.circle_radius)
-                            else:
-
-                                pass
-                            if self.board[selected - 9][0] != self.Turn and self.board[selected - 9][0] != "Null":
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    (self.selected_to_x_y(selected)[0]) * self.boxL + 20 - self.boxL + self.boxL / 2,
-                                    (self.selected_to_x_y(selected)[1]) * self.boxL - self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-
-                            # -7 to find top right capture
-                            if self.board[selected - 7][0] != self.Turn and self.board[selected - 7][0] != "Null":
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    (self.selected_to_x_y(selected)[0]) * self.boxL + 20 + self.boxL + self.boxL / 2,
-                                    (self.selected_to_x_y(selected)[1]) * self.boxL - self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                        except:
-                            pass
-
-                    if piece_colour == "Black":
-                        try:
-                            if selected // 8 == 1:
-                                if self.board[selected + 8][1] == "Null" and self.board[selected + 16][1] == "Null":
-                                    # print("double move possible")
-                                    pygame.draw.circle(self.game_display, self.cyan,
-                                                       (selected % 8 * self.boxL + 20 + self.boxL / 2,
-                                                        ((self.selected_to_x_y(selected)[1]) + 3) *
-                                                        115 + 20 - self.boxL + self.boxL / 2), self.circle_radius)
-                                    pygame.draw.circle(self.game_display, self.cyan,
-                                                       (selected % 8 * self.boxL + 20 + self.boxL / 2,
-                                                        ((self.selected_to_x_y(selected)[1]) + 2) *
-                                                        self.boxL + 20 - self.boxL + self.boxL / 2), self.circle_radius)
-                                    self.x_y_to_selected(self.selected_to_x_y(selected)[0],
-                                                         self.selected_to_x_y(selected)[1] + 1)
-
-                            if self.board[selected + 8][1] == "Null":
-
-                                # print ("Space in front available ")
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   (selected % 8 * self.boxL + 20 + self.boxL / 2,
-                                                    ((self.selected_to_x_y(selected)[1]) + 2) *
-                                                    self.boxL + 20 - self.boxL + self.boxL / 2), self.circle_radius)
-                            else:
-                                # print("space in front not available ")
-                                pass
-                            if self.board[selected + 9][0] != self.Turn and self.board[selected + 9][0] != "Null":
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    (self.selected_to_x_y(selected)[
-                                         0] + 2) * self.boxL + 20 - self.boxL + self.boxL / 2,
-                                    (self.selected_to_x_y(selected)[
-                                         1] + 2) * self.boxL - self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-
-                            # -7 to find bottom right capture
-                            if self.board[selected + 7][0] != self.Turn and self.board[selected + 7][0] != "Null":
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    (self.selected_to_x_y(selected)[
-                                         0] - 2) * self.boxL + 20 + self.boxL + self.boxL / 2,
-                                    (self.selected_to_x_y(selected)[
-                                         1] + 2) * self.boxL - self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                        except:
-                            pass
-
-                    # ########### capture highlighting
-
-                    # -9 to find bottom left capture
-
-                    # ####################
-
-                if piece_name == "Bishop":
-                    try:
-                        for i in range(1, 8):  # ####up left
-                            if self.selected_to_x_y(selected - (9 * i))[0] == -1 or \
-                                    self.selected_to_x_y(selected - (9 * i))[1] == -1:
-                                break
-                            elif self.board[selected - (9 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected - (9 * i)][0] != self.Turn:
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - (9 * i)][0] == self.Turn:
-                                break
-
-                        for i in range(1, 8):  # #### up right
-                            if self.selected_to_x_y(selected - 7 * i)[0] == 8 or self.selected_to_x_y(selected - 7 * i)[
-                                1] == 0:
-                                break
-                            elif self.board[selected - (7 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected - (7 * i)][0] != self.Turn:
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - (7 * i)][0] == self.Turn:
-                                break
-
-                        for i in range(1, 8):  # ###### down left
-                            if self.board[selected + (7 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected + (7 * i)][0] != self.Turn:
-
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected + (7 * i)][0] == self.Turn:
-                                break
-                        for i in range(1, 8):  # ###### down right
-                            if self.board[selected + (9 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-
-                            elif self.board[selected + (9 * i)][0] != self.Turn:
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-
-                            elif self.board[selected + (9 * i)][0] == self.Turn:
-                                break
-                    except:
-                        pass
-
-                if piece_name == "Queen":
-                    try:
-                        for i in range(1, 8):  # ####up left
-                            if self.selected_to_x_y(selected - (9 * i))[0] == -1 or \
-                                    self.selected_to_x_y(selected - (9 * i))[1] == -1:
-                                break
-                            elif self.board[selected - (9 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected - (9 * i)][0] != self.Turn:
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - (9 * i)][0] == self.Turn:
-                                break
-
-                        for i in range(1, 8):  # #### up right
-                            if self.selected_to_x_y(selected - 7 * i)[0] == 8 or self.selected_to_x_y(selected - 7 * i)[
-                                1] == 0:
-                                break
-                            elif self.board[selected - (7 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected - (7 * i)][0] != self.Turn:
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] - i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - (7 * i)][0] == self.Turn:
-                                break
-
-                        for i in range(1, 8):  # ###### down left
-                            if self.board[selected + (7 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected + (7 * i)][0] != self.Turn:
-
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected + (7 * i)][0] == self.Turn:
-                                break
-                        for i in range(1, 8):  # ###### down right
-                            if self.board[selected + (9 * i)][0] == "Null":
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-
-                            elif self.board[selected + (9 * i)][0] != self.Turn:
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + i) * self.boxL + 20 + self.boxL / 2, (
-                                                            self.selected_to_x_y(selected)[
-                                                                1] + i) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-
-                            elif self.board[selected + (9 * i)][0] == self.Turn:
-                                break
-                    except:
-                        pass
-
-                    for i in range(1, 8):  # ###### highlights rook downwards. Working
-
-                        scan_vertical = (8 * i)
-                        skip = False
-                        if selected + scan_vertical > 63:
-                            skip = True
-                        if not skip:
-                            if self.board[selected + scan_vertical][0] == "Null":  # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan, (
-                                    (self.selected_to_x_y(selected)[0] * self.boxL) + 20 + self.boxL / 2,
-                                    (i * self.boxL + 20 + self.selected_to_x_y(selected)[
-                                        1] * self.boxL + self.boxL / 2)),
-                                                   self.circle_radius)
-                            elif self.board[selected + scan_vertical][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    (self.selected_to_x_y(selected)[0] * self.boxL) + 20 + self.boxL / 2,
-                                    (i * self.boxL + 20 + self.selected_to_x_y(selected)[
-                                        1] * self.boxL + self.boxL / 2)),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected + scan_vertical][0] == self.Turn:
-                                break
-
-                    for i in range(1, 8):  # ###### highlights rook upwards
-
-                        scan_vertical = (8 * i)
-                        skip = False
-                        if selected - scan_vertical < 0:
-                            skip = True
-                        if not skip:
-                            if self.board[selected - scan_vertical][0] == "Null":
-                                # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   (self.selected_to_x_y(selected)[0] * self.boxL + 20 + self.boxL / 2,
-                                                    self.selected_to_x_y(selected)[
-                                                        1] * self.boxL - self.boxL * i + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected - scan_vertical][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red,
-                                                   (self.selected_to_x_y(selected)[0] * self.boxL + 20 + self.boxL / 2,
-                                                    self.selected_to_x_y(selected)[
-                                                        1] * self.boxL - self.boxL * i + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - scan_vertical][0] == self.Turn:
-                                break
-
-                    for i in range(1, 8):  # ### highlights rook to the left
-                        skip = False
-                        if self.selected_to_x_y(selected - i)[0] == 0:
-                            skip = True
-                        if not skip:
-                            if self.board[selected - i][0] == "Null":
-                                # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL - self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected - i][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL - self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected - i][0] == self.Turn:
-                                break
-
-                    for i in range(1, 8):  # ##### highlights rook to the right
-                        skip = False
-                        if self.selected_to_x_y(selected + i)[0] == 0:
-                            skip = True
-                        if not skip:
-                            if self.board[selected + i][0] == "Null":
-                                # to make sure next space is empty
-                                # creates vertical rook highlight going down from rook
-                                pygame.draw.circle(self.game_display, self.cyan, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL + self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                            elif self.board[selected + i][
-                                0] != self.Turn:  # if can take opposite colour, will show self.red highlight
-                                pygame.draw.circle(self.game_display, self.red, (
-                                    self.selected_to_x_y(selected)[0] * self.boxL + self.boxL * i + 20 + self.boxL / 2,
-                                    self.selected_to_x_y(selected)[1] * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-                                break
-                            elif self.board[selected + i][0] == self.Turn:
-                                break
-                    # will include only code from both rook and bishop
-                    # print("Queen Highlighted")
-
-                if piece_name == "King":
-                    try:
-                        # #### 8 different directions the king can move in
-                        if self.board[selected - 9][0] == "Null":  # ### top left
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[selected - 9][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        if self.board[selected - 8][0] == "Null":  # ### top middle
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (self.selected_to_x_y(selected)[0] * self.boxL + 20 + self.boxL / 2, (
-                                                       self.selected_to_x_y(selected)[
-                                                           1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[selected - 8][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red,
-                                               (self.selected_to_x_y(selected)[0] * self.boxL + 20 + self.boxL / 2, (
-                                                       self.selected_to_x_y(selected)[
-                                                           1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        if self.board[selected - 7][0] == "Null":  # ### top right
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        elif self.board[selected - 7][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        if self.board[selected - 1][0] == "Null":  # #### left
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (
-                                                       self.selected_to_x_y(selected)[
-                                                           1]) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                            if self.board[selected - 2][0] == "Null" and self.board[selected - 3][0] == "Null" and \
-                                    self.board[selected - 4] and self.board[selected]:
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] - 2) * self.boxL + 20 + self.boxL / 2, (
-                                                        self.selected_to_x_y(selected)[
-                                                            1]) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-
-                        elif self.board[selected - 1][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (
-                                                       self.selected_to_x_y(selected)[
-                                                           1]) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        if self.board[selected + 1][0] == "Null":  # #### right
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (
-                                                       self.selected_to_x_y(selected)[
-                                                           1]) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                            if self.board[selected + 2][0] == "Null" and self.board[selected + 3][6] and self.board[
-                                selected]:  # # to castle right, space to right needs to be empty and usual castling rules apply
-                                pygame.draw.circle(self.game_display, self.cyan,
-                                                   ((self.selected_to_x_y(selected)[
-                                                         0] + 2) * self.boxL + 20 + self.boxL / 2, (
-                                                        self.selected_to_x_y(selected)[
-                                                            1]) * self.boxL + 20 + self.boxL / 2),
-                                                   self.circle_radius)
-
-                        elif self.board[selected + 1][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (
-                                                       self.selected_to_x_y(selected)[
-                                                           1]) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        if self.board[selected + 7][0] == "Null":  # #### bottom left
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (
-                                                   (self.selected_to_x_y(selected - 1)[
-                                                       0]) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        elif self.board[selected + 7][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red,
-                                               (
-                                                   (self.selected_to_x_y(selected - 1)[
-                                                       0]) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        if self.board[selected + 8][0] == "Null":  # #### bottom
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               ((self.selected_to_x_y(selected)[0]) * self.boxL + 20 + self.boxL / 2, (
-                                                       self.selected_to_x_y(selected)[
-                                                           1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        elif self.board[selected + 8][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red,
-                                               ((self.selected_to_x_y(selected)[0]) * self.boxL + 20 + self.boxL / 2, (
-                                                       self.selected_to_x_y(selected)[
-                                                           1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        if self.board[selected + 9][0] == "Null":  # ##### bottom right
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-
-                        elif self.board[selected + 9][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.cyan,
-                                               (
-                                                   (self.selected_to_x_y(selected)[
-                                                        0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                                   (self.selected_to_x_y(selected)[
-                                                        1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-
-                if piece_name == "Knight":
-                    # print("Knight selected")
-                    try:  # while a knight is at the centre of the self.board, it can move normally
-                        # ## afaik, this is working perfectly fine.
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 2,
-                                                           self.selected_to_x_y(selected)[1] - 1)][
-                            0] == "Null":  # 2 left one up
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] - 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 2,
-                                                             self.selected_to_x_y(selected)[1] - 1)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] - 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-                    try:
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 2,
-                                                           self.selected_to_x_y(selected)[1] + 1)][
-                            0] == "Null":  # 2 left one down
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] - 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 2,
-                                                             self.selected_to_x_y(selected)[1] + 1)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] - 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-                    try:
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 2,
-                                                           self.selected_to_x_y(selected)[1] + 1)][
-                            0] == "Null":  # 2 right one down
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] + 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 2,
-                                                             self.selected_to_x_y(selected)[1] + 1)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] + 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-                    try:
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 2,
-                                                           self.selected_to_x_y(selected)[1] - 1)][
-                            0] == "Null":  # 2 right one up
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] + 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 2,
-                                                             self.selected_to_x_y(selected)[1] - 1)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] + 2) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 1) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-                    try:
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 1,
-                                                           self.selected_to_x_y(selected)[1] + 2)][
-                            0] == "Null":  # 1 right 2 down
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 1,
-                                                             self.selected_to_x_y(selected)[1] + 2)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-                    try:
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 1,
-                                                           self.selected_to_x_y(selected)[1] - 2)][
-                            0] == "Null":  # 1 right 2 up
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] + 1,
-                                                             self.selected_to_x_y(selected)[1] - 2)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] + 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-                    try:
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 1,
-                                                           self.selected_to_x_y(selected)[1] + 2)][
-                            0] == "Null":  # 1 left 2 down
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 1,
-                                                             self.selected_to_x_y(selected)[1] + 2)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] + 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
-                    try:
-
-                        if self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 1,
-                                                           self.selected_to_x_y(selected)[1] - 2)][
-                            0] == "Null":  # 1 left 2 up
-                            pygame.draw.circle(self.game_display, self.cyan, (
-                                (self.selected_to_x_y(selected)[0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                        elif self.board[self.x_y_to_selected(self.selected_to_x_y(selected)[0] - 1,
-                                                             self.selected_to_x_y(selected)[1] - 2)][0] != self.Turn:
-                            pygame.draw.circle(self.game_display, self.red, (
-                                (self.selected_to_x_y(selected)[0] - 1) * self.boxL + 20 + self.boxL / 2,
-                                (self.selected_to_x_y(selected)[1] - 2) * self.boxL + 20 + self.boxL / 2),
-                                               self.circle_radius)
-                    except:
-                        pass
+        if piece_name == "Rook":
+            self.highlight_rook(selected)
+        elif piece_name == "Pawn":
+            self.highlight_pawn(selected, piece_colour)
+        elif piece_name == "Bishop":
+            self.highlight_bishop(selected)
+        elif piece_name == "Queen":
+            self.highlight_queen(selected)
+        elif piece_name == "King":
+            self.highlight_king(selected)
+        elif piece_name == "Knight":
+            self.highlight_knight(selected)
 
     def x_y_to_selected(self, x, y):
         if x >= 8 or x < 0 or y >= 8 or y < 0:
