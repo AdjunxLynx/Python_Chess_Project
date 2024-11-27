@@ -1,12 +1,22 @@
 # pygame module
 import pygame
 import threading
+import time
 
+def measure_time(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        execution_time = (end_time - start_time) * 1000  # Convert seconds to milliseconds
+        print(f"{func.__name__} took {execution_time:.5f} ms to run.")
+        return result
+    return wrapper
 
 class Chess():
     import pygame
 
-    def __init__(self, dimensions=960, fps=60):
+    def __init__(self, dimensions=960, fps=30):
         self.event_list = None
         self.piece_image = None
         self.mouse_x, self.mouse_y = None, None
@@ -110,21 +120,51 @@ class Chess():
         pygame.draw.rect(self.game_display, colour, (x_starting_pos, y_starting_pos, x_length, y_length))
         self.game_display.blit(self.font.render(text, True, self.cyan), (x_starting_pos, y_starting_pos))
 
+    #@measure_time
     def display_fps(self):  # Displays current FPS
         fps_counter = str(int(self.clock.get_fps()))
         fps_text = self.font.render(fps_counter, True, pygame.Color("coral"))
         self.game_display.blit(fps_text, (910, 0))
 
+    #@measure_time
+    def DrawBoard(self):
+        for X in range(4):
+            for Y in range(4):
+                box_x = self.boxL * 2 * (X + 1)
+                box_y = self.boxL * 2 * Y
+                pygame.draw.rect(self.game_display, self.lBrown, (box_x - 210, box_y + 20, self.boxL, self.boxL))
+                pygame.draw.rect(self.game_display, self.brown, (box_x - 95, box_y + 20, self.boxL, self.boxL))
+
+                pygame.draw.rect(self.game_display, self.lBrown, (box_x - 95, box_y + 135, self.boxL, self.boxL))
+                pygame.draw.rect(self.game_display, self.brown, (box_x - 210, box_y + 135, self.boxL, self.boxL))
+
+        pygame.draw.rect(self.game_display, self.black, (20, 20, 920, 920), 1)
+
+    # format for piece = [colour, rank, picture, x, y, life?]
+
+    #@measure_time
     def loadPictures(self):  # loads, resizes and blits active chess pieces
+        # Cache images during initialisation or when needed
+        if not hasattr(self, "image_cache"):
+            self.image_cache = {}
+
         for i in range(64):
             if self.board[i][2] == "noPicture":
-                pass
-            elif self.board[i][5] == "life":
-                self.piece_image = pygame.image.load("Pictures/" + self.board[i][2])
-                self.piece_image = pygame.transform.scale(self.piece_image, (self.boxL, self.boxL))
-                self.game_display.blit(self.piece_image, ((self.selected_to_x_y(i)[0] * self.boxL) + 20, (
-                        self.selected_to_x_y(i)[
-                            1] * self.boxL) + 20))  # self.board[i][2&3] to get x&y co-ordinates respectively
+                continue
+
+            if self.board[i][5] == "life":
+                piece_name = self.board[i][2]
+
+                # Load and cache the image if it's not already cached
+                if piece_name not in self.image_cache:
+                    image = pygame.image.load(f"Pictures/{piece_name}")
+                    image = pygame.transform.scale(image, (self.boxL, self.boxL))
+                    self.image_cache[piece_name] = image
+
+                # Use the cached image
+                self.piece_image = self.image_cache[piece_name]
+                x_coord, y_coord = self.selected_to_x_y(i)
+                self.game_display.blit(self.piece_image, (x_coord * self.boxL + 20, y_coord * self.boxL + 20))
 
     def input_text(self, eventLists, name):
         try:
@@ -224,7 +264,7 @@ class Chess():
             self.loadPictures()
             self.DrawBoard()
 
-            mouse_x, mouse_y = pygame.mouse.get_pos()
+            mouse_x, mouse_y = self.get_mouse()
             pygame.draw.rect(self.game_display, self.black,
                              (self.height / 2 - self.boxL, self.height / 2 - self.boxL, 2 * self.boxL, 2 * self.boxL))
 
@@ -1044,347 +1084,197 @@ class Chess():
         elif self.Turn == "Black":
             return "White"
 
-    def DrawBoard(self):
-        for X in range(4):
-            for Y in range(4):
-                box_x = self.boxL * 2 * (X + 1)
-                box_y = self.boxL * 2 * Y
-                pygame.draw.rect(self.game_display, self.lBrown, (box_x - 210, box_y + 20, self.boxL, self.boxL))
-                pygame.draw.rect(self.game_display, self.brown, (box_x - 95, box_y + 20, self.boxL, self.boxL))
-
-                pygame.draw.rect(self.game_display, self.lBrown, (box_x - 95, box_y + 135, self.boxL, self.boxL))
-                pygame.draw.rect(self.game_display, self.brown, (box_x - 210, box_y + 135, self.boxL, self.boxL))
-
-        pygame.draw.rect(self.game_display, self.black, (20, 20, 920, 920), 1)
-
-    # format for piece = [colour, rank, picture, x, y, life?]
-
     def set_blocked_typing(self):
         pygame.event.set_blocked(1025)  # blocks mouse clicks from being detected
         pygame.event.set_blocked(1026)
         pygame.event.set_blocked(1024)  # blocks mouse movement to be detected
         pygame.event.set_blocked(769)
 
-    def main_page_logic(self):
-        if self.clickableButton(380, 200, 600, 80):
-            self.mainPage = False
-            self.soloMode = True
-
-        if self.clickableButton(10, 100, 10, 35):
-            self.mainPage = False
-            self.Credits = True
-
-    def main_page_display(self):
-        self.DrawButton(self.grey, 380, 200, 600, 80, "Solo Mode")
-
-        # draws button for chess game
-
-        pygame.draw.rect(self.game_display, self.brown, (10, 10, 100, 35))
-        self.game_display.blit(self.font.render("Credits", True, self.black), (10, 10))
-        # draws button for credits screen
-
-    def credits_page_logic(self):
-        # draws a back button to go to main screen
-        if self.clickableButton(890, 70, 10, 50):
-            self.mainPage = True
-            self.Credits = False
-
-    def credits_page_display(self):
-        pygame.draw.rect(self.game_display, self.lBrown, (380, 200, 200, 80))
-        self.game_display.blit(self.font.render("Credits:", True, self.black), (410, 225))
-
-        self.game_display.blit(
-            self.font.render("https://levelup.gitconnected.com/chess-python-ca4532c7f5a4", True, self.black),
-            (60, 275))
-        self.game_display.blit(self.font.render("https://www.stackoverflow.com/adjunxlynx", True, self.black),
-                               (60, 305))
-        self.game_display.blit(self.font.render("https://www.google.com", True, self.black), (60, 335))
-        # my sources
-
-        self.game_display.blit(self.font.render("Made by Kamil Leocadie-Olsen", True, self.black), (250, 800))
-        # creator
-        self.DrawButton(self.black, 890, 60, 10, 50, "back")
-        # creates button for credits screen
-
-    def run(self):
+    def solo_mode_display(self):
         while self.gameRunning:
-
-            # ### getters for main
-
-            self.event_list = pygame.event.get()
-
-            # print(event_list)
-            self.display_fps()
+            self.game_display.fill(self.white)
+            self.DrawBoard()#
+            self.loadPictures()#
+            self.display_fps()#
+            # Refreshes the screen
             pygame.display.flip()
             self.clock.tick(self.FPS)
-            self.game_display.fill(self.white)
-            mouse_x, mouse_y = self.get_mouse()
 
-            for self.event in self.event_list:
+    def solo_mode_logic(self):
+        while self.gameRunning:
+            for self.event in pygame.event.get():
                 if self.event.type == pygame.QUIT:
                     self.gameRunning = False
 
-            if not self.typing_username:
-                selected_colour_username = (0, 0, 0)
-            if self.typing_username:
-                selected_colour_username = (100, 100, 255)
 
-            if not self.typing_password:
-                selected_colour_password = (0, 0, 0)
-            if self.typing_password:
-                selected_colour_password = (100, 255, 100)
+            self.chosen = self.selected()
+            # print(self.chosen)
+            x, y = self.selected_to_x_y(self.chosen)
+            mouse_x, mouse_y = self.get_mouse()
 
-            if self.mainPage:
-                self.main_page_display()
-                self.main_page_logic()
+            if self.moving:
+                self.highlighted(self.chosen_index, self.Turn)
+            else:
+                self.highlighted(self.chosen, self.Turn)
 
-            if self.Credits:
-                self.credits_page_logic()
-                self.credits_page_display()
+            if self.ischeckmate(self.board) == "white":
+                print("white won")
+            elif self.ischeckmate(self.board) == "black":
+                print("black won")
 
+            for i in range(64):
+                if self.board[i][1] == "Pawn":
+                    if i // 8 == 0 or i // 8 == 7:
+                        print("pawn about to be promoted")
+                        self.promoted_piece = self.promote(self.event)
+                        self.promoted_piece = str(self.promoted_piece)
 
+                        if self.promoted_piece is None:
+                            self.gameRunning = False
+                            print("Quitting")
+                        else:
+                            self.promoted_picture = (self.promoted_piece + ".png")
+                            self.board[self.x_y_to_selected(self.board[i][3], self.board[i][4])][1] == str(
+                                self.promoted_piece)
+                            self.board[i][1] = self.promoted_piece
 
-            if self.soloMode:
+                            self.promoted_piece = self.promoted_piece.lower()
+                            print(self.x_y_to_selected(self.board[i][3], self.board[i][4]))
+                            self.board[self.chosen_index][0] == str(self.Turn)
 
-                self.chosen = self.selected()
-                # print(self.chosen)
-                x, y = self.selected_to_x_y(self.chosen)
-                self.DrawBoard()
-                self.loadPictures()
-                if self.moving:
-                    self.highlighted(self.chosen_index, self.Turn)
-                else:
-                    self.highlighted(self.chosen, self.Turn)
+                            self.board[i][3] == self.selected_to_x_y(self.board[i][3])
+                            self.board[i][4] == self.selected_to_x_y(self.board[i][4])
 
-                self.DrawButton(self.cyan, 0, 30, 0, 15, "back")
-                font = pygame.font.SysFont("calibri", 12)
-                pygame.draw.rect(self.game_display, self.cyan, (0, 0, 30, 15))
-                self.game_display.blit(font.render("back", True, self.black),
-                                       (0, 0))  # draws a back button to go back to Mainscreen
+                            self.picture = (self.swap_colour(self.Turn)[0].lower() + "_" + self.promoted_picture)
+                            self.board[i][2] = self.picture.lower()
+                            break
 
-                if self.ischeckmate(self.board) == "white":
-                    print("white won")
-                elif self.ischeckmate(self.board) == "black":
-                    print("black won")
-
-                if self.clickableButton(0, 30, 0, 15):
-                    self.soloMode = False
-                    self.mainPage = True
-                    # creates a back button to go back to Mainscreen
-                for i in range(64):
-                    if self.board[i][1] == "Pawn":
-                        if i // 8 == 0 or i // 8 == 7:
-                            print("pawn about to be promoted")
-                            self.promoted_piece = self.promote(self.event)
-                            self.promoted_piece = str(self.promoted_piece)
-
-                            if self.promoted_piece is None:
-                                self.gameRunning = False
-                                print("Quitting")
-                            else:
-                                self.promoted_picture = (self.promoted_piece + ".png")
-                                self.board[self.x_y_to_selected(self.board[i][3], self.board[i][4])][1] == str(
-                                    self.promoted_piece)
-                                self.board[i][1] = self.promoted_piece
-
-                                self.promoted_piece = self.promoted_piece.lower()
-                                print(self.x_y_to_selected(self.board[i][3], self.board[i][4]))
-                                self.board[self.chosen_index][0] == str(self.Turn)
-
-                                self.board[i][3] == self.selected_to_x_y(self.board[i][3])
-                                self.board[i][4] == self.selected_to_x_y(self.board[i][4])
-
-                                self.picture = (self.swap_colour(self.Turn)[0].lower() + "_" + self.promoted_picture)
-                                self.board[i][2] = self.picture.lower()
-                                break
-
-                if not self.moving:
-                    if self.event.type == pygame.MOUSEBUTTONDOWN:
-                        if self.chosen is None:
-                            pass
-                        elif self.board[self.chosen][0] == self.Turn:
-                            self.chosen_piece = self.board[self.chosen]
-                            self.choice = self.chosen
-                            print("Chosen", self.chosen_piece[1])
-                            self.chosen_index = self.chosen
-                            self.moving = True
-
-                self.check_ghost = True
-
-                for i in range(64):
-                    if self.check_ghost:
-                        if self.board[i][5] == "ghost":
-                            if self.board[i][0] == self.Turn:
-                                self.board[i][0] = "Null"
-                                self.board[i][1] = "Null"
-                                self.board[i][2] = "noPicture"
-                                self.board[i][5] = "dead"
-                                print(self.board[i])
-                                self.check_ghost = False
-                                print("getting rid of ghost at", i)
-
-                if self.moving:
-                    if self.event.type == pygame.MOUSEBUTTONDOWN:
-                        if self.event.button == 3 or (mouse_x < 20 or mouse_x > 940) or (mouse_y > 940 or mouse_y < 20):
-                            self.chosen_piece = ["", "", ""]
-                            self.moving = False
-                            print("Deselected")
-
+            if not self.moving:
+                if self.event.type == pygame.MOUSEBUTTONDOWN:
                     if self.chosen is None:
                         pass
-                    elif self.chosen_piece[0] == self.Turn:
-                        if self.chosen_piece[5] == "life":
-                            if self.chosen_piece[1] == "Queen":
+                    elif self.board[self.chosen][0] == self.Turn:
+                        self.chosen_piece = self.board[self.chosen]
+                        self.choice = self.chosen
+                        print("Chosen", self.chosen_piece[1])
+                        self.chosen_index = self.chosen
+                        self.moving = True
 
-                                #  ###Bishop half of queen
+            self.check_ghost = True
 
-                                if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                    pass  # don't wanna take my own piece
-                                elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                    if self.board[
-                                        self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+            for i in range(64):
+                if self.check_ghost:
+                    if self.board[i][5] == "ghost":
+                        if self.board[i][0] == self.Turn:
+                            self.board[i][0] = "Null"
+                            self.board[i][1] = "Null"
+                            self.board[i][2] = "noPicture"
+                            self.board[i][5] = "dead"
+                            print(self.board[i])
+                            self.check_ghost = False
+                            print("getting rid of ghost at", i)
+
+            if self.moving:
+                if self.event.type == pygame.MOUSEBUTTONDOWN:
+                    if self.event.button == 3 or (mouse_x < 20 or mouse_x > 940) or (mouse_y > 940 or mouse_y < 20):
+                        self.chosen_piece = ["", "", ""]
+                        self.moving = False
+                        print("Deselected")
+
+                if self.chosen is None:
+                    pass
+                elif self.chosen_piece[0] == self.Turn:
+                    if self.chosen_piece[5] == "life":
+                        if self.chosen_piece[1] == "Queen":
+
+                            #  ###Bishop half of queen
+
+                            if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                pass  # don't wanna take my own piece
+                            elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                if self.board[
+                                    self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                    pass
+
+                                self.allow_move = True
+
+                                if abs(self.selected_to_x_y(self.chosen)[0] -
+                                       self.selected_to_x_y(self.chosen_index)[0]) == abs(
+                                    self.selected_to_x_y(self.chosen)[1] -
+                                    self.selected_to_x_y(self.chosen_index)[
+                                        1]):  # ### to ensure along a diagonal as the change in y and change in x shld be equal
+                                    try:
+                                        for i in range(1, self.selected_to_x_y(self.chosen)[0] -
+                                                          self.selected_to_x_y(self.chosen_index)[
+                                                              0]):  # could have chosen y. doesnt matter
+
+                                            if self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
+                                                                     self.selected_to_x_y(self.chosen)[1] + i)]:
+                                                self.allow_move = False
+                                                break
+                                            elif self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
+                                                                     self.selected_to_x_y(self.chosen)[1] - i)]:
+                                                self.allow_move = False
+                                                break
+                                            elif self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
+                                                                     self.selected_to_x_y(self.chosen)[1] + i)]:
+                                                self.allow_move = False
+                                                break
+                                            elif self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
+                                                                     self.selected_to_x_y(self.chosen)[1] - i)]:
+                                                self.allow_move = False
+                                                break
+                                    except:
                                         pass
+                                    if self.allow_move:
+                                        #  ########################## afaik, this works perfectly fine
+                                        if self.selected_to_x_y(self.chosen)[0] == self.chosen_piece[
+                                            3]:  # if the x coordinate is the same as the moving to where the mouse is
+                                            if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                                pass  # don't wanna take my own piece
+                                            elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                                if self.board[
+                                                    self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                                    pass
 
-                                    self.allow_move = True
-
-                                    if abs(self.selected_to_x_y(self.chosen)[0] -
-                                           self.selected_to_x_y(self.chosen_index)[0]) == abs(
-                                        self.selected_to_x_y(self.chosen)[1] -
-                                        self.selected_to_x_y(self.chosen_index)[
-                                            1]):  # ### to ensure along a diagonal as the change in y and change in x shld be equal
-                                        try:
-                                            for i in range(1, self.selected_to_x_y(self.chosen)[0] -
-                                                              self.selected_to_x_y(self.chosen_index)[
-                                                                  0]):  # could have chosen y. doesnt matter
-
-                                                if self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
-                                                                         self.selected_to_x_y(self.chosen)[1] + i)]:
-                                                    self.allow_move = False
-                                                    break
-                                                elif self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
-                                                                         self.selected_to_x_y(self.chosen)[1] - i)]:
-                                                    self.allow_move = False
-                                                    break
-                                                elif self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
-                                                                         self.selected_to_x_y(self.chosen)[1] + i)]:
-                                                    self.allow_move = False
-                                                    break
-                                                elif self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
-                                                                         self.selected_to_x_y(self.chosen)[1] - i)]:
-                                                    self.allow_move = False
-                                                    break
-                                        except:
-                                            pass
-                                        if self.allow_move:
-                                            #  ########################## afaik, this works perfectly fine
-                                            if self.selected_to_x_y(self.chosen)[0] == self.chosen_piece[
-                                                3]:  # if the x coordinate is the same as the moving to where the mouse is
-                                                if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                                    pass  # don't wanna take my own piece
-                                                elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                                    if self.board[
-                                                        self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
-                                                        pass
-
-                                                    self.allow_move = True
-                                                    for i in range(1, self.selected_to_x_y(self.chosen)[1] -
-                                                                      self.chosen_piece[
-                                                                          4]):  # ##### to find the the the distance between original and place i want to move
-                                                        if self.Turn in self.board[self.chosen_index + 8 * i][0]:
-                                                            self.allow_move = False
-                                                            break
-
-                                                    if self.allow_move:
-                                                        print("taking " + str(self.board[self.chosen]))
-                                                        self.board[
-                                                            self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
-                                                        self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
-                                                            0]  # #### correcting values within the self.board[self.chosen]
-                                                        self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
-                                                            1]  # #### correcting values within the self.board[self.chosen]
-                                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                         self.selected_to_x_y(
-                                                                                             self.chosen_index)[0],
-                                                                                         self.selected_to_x_y(
-                                                                                             self.chosen_index)[1],
-                                                                                         "dead"]  # ### setting the old square to empty
-                                                        self.moving = False
+                                                self.allow_move = True
+                                                for i in range(1, self.selected_to_x_y(self.chosen)[1] -
+                                                                  self.chosen_piece[
+                                                                      4]):  # ##### to find the the the distance between original and place i want to move
+                                                    if self.Turn in self.board[self.chosen_index + 8 * i][0]:
                                                         self.allow_move = False
-                                                        self.Turn = self.swap_colour()
+                                                        break
 
-                                # #################### Rook half of Queen is done
+                                                if self.allow_move:
+                                                    print("taking " + str(self.board[self.chosen]))
+                                                    self.board[
+                                                        self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
+                                                    self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
+                                                        0]  # #### correcting values within the self.board[self.chosen]
+                                                    self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
+                                                        1]  # #### correcting values within the self.board[self.chosen]
+                                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                                     self.selected_to_x_y(
+                                                                                         self.chosen_index)[0],
+                                                                                     self.selected_to_x_y(
+                                                                                         self.chosen_index)[1],
+                                                                                     "dead"]  # ### setting the old square to empty
+                                                    self.moving = False
+                                                    self.allow_move = False
+                                                    self.Turn = self.swap_colour()
 
-                                # print(self.chosen_piece)
-                                # print(self.selected_to_x_y(self.chosen)[1], self.chosen_piece[4])
+                            # #################### Rook half of Queen is done
 
-                                #  ########################## afaik, this works perfectly fine
-                                if self.selected_to_x_y(self.chosen)[0] == self.chosen_piece[
-                                    3]:  # if the x coordinate is the same as the moving to where the mouse is
-                                    if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                        pass  # don't wanna take my own piece
-                                    elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                        if self.board[
-                                            self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
-                                            pass
+                            # print(self.chosen_piece)
+                            # print(self.selected_to_x_y(self.chosen)[1], self.chosen_piece[4])
 
-                                        self.allow_move = True
-                                        for i in range(1, self.selected_to_x_y(self.chosen)[1] - self.chosen_piece[
-                                            4]):  # ##### to find the the the distance between original and place i want to move
-                                            if self.Turn in self.board[self.chosen_index + 8 * i][0]:
-                                                self.allow_move = False
-                                                break
-
-                                        if self.allow_move:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[
-                                                self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
-                                            self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
-                                                0]  # #### correcting values within the self.board[self.chosen]
-                                            self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
-                                                1]  # #### correcting values within the self.board[self.chosen]
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]  # ### setting the old square to empty
-                                            self.moving = False
-                                            self.allow_move = False
-                                            self.Turn = self.swap_colour()
-
-                                if self.selected_to_x_y(self.chosen)[1] == self.chosen_piece[
-                                    4]:  # if the y coordinate is the same as the moving to where the mouse is
-                                    if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                        pass  # don't wanna take my own piece
-
-                                    elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                        if self.board[
-                                            self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
-                                            pass
-
-                                        self.allow_move = True
-                                        for i in range(1, self.selected_to_x_y(self.chosen)[0] - self.chosen_piece[
-                                            3]):  # ###### to find the the the distance between original and place i want to move
-                                            if self.Turn in self.board[self.chosen_index + i][0]:
-                                                self.allow_move = False
-                                                break
-
-                                        if self.allow_move:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[self.chosen] = self.chosen_piece
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]
-                                            self.moving = False
-
-                                            self.allow_move = False
-                                            self.Turn = self.swap_colour(self.Turn)
-
-                            if self.chosen_piece[1] == "Bishop":
-
+                            #  ########################## afaik, this works perfectly fine
+                            if self.selected_to_x_y(self.chosen)[0] == self.chosen_piece[
+                                3]:  # if the x coordinate is the same as the moving to where the mouse is
                                 if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
                                     pass  # don't wanna take my own piece
                                 elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
@@ -1393,381 +1283,559 @@ class Chess():
                                         pass
 
                                     self.allow_move = True
+                                    for i in range(1, self.selected_to_x_y(self.chosen)[1] - self.chosen_piece[
+                                        4]):  # ##### to find the the the distance between original and place i want to move
+                                        if self.Turn in self.board[self.chosen_index + 8 * i][0]:
+                                            self.allow_move = False
+                                            break
 
-                                    if abs(self.selected_to_x_y(self.chosen)[0] -
-                                           self.selected_to_x_y(self.chosen_index)[0]) == abs(
-                                        self.selected_to_x_y(self.chosen)[1] -
-                                        self.selected_to_x_y(self.chosen_index)[
-                                            1]):  # ### to ensure along a diaganol
-                                        try:
-                                            for i in range(1, self.selected_to_x_y(self.chosen)[0] -
-                                                              self.selected_to_x_y(self.chosen_index)[0]):
+                                    if self.allow_move:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[
+                                            self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
+                                        self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
+                                            0]  # #### correcting values within the self.board[self.chosen]
+                                        self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
+                                            1]  # #### correcting values within the self.board[self.chosen]
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]  # ### setting the old square to empty
+                                        self.moving = False
+                                        self.allow_move = False
+                                        self.Turn = self.swap_colour()
 
-                                                if self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
-                                                                         self.selected_to_x_y(self.chosen)[1] + i)]:
-                                                    self.allow_move = False
-                                                    break
-                                                elif self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
-                                                                         self.selected_to_x_y(self.chosen)[1] - i)]:
-                                                    self.allow_move = False
-                                                    break
-                                                elif self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
-                                                                         self.selected_to_x_y(self.chosen)[1] + i)]:
-                                                    self.allow_move = False
-                                                    break
-                                                elif self.Turn in self.board[
-                                                    self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
-                                                                         self.selected_to_x_y(self.chosen)[1] - i)]:
-                                                    self.allow_move = False
-                                                    break
-                                        except:
-                                            pass
-                                        if self.allow_move:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[
-                                                self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
-                                            self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
-                                                0]  # #### correcting values within the self.board[self.chosen]
-                                            self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
-                                                1]  # #### correcting values within the self.board[self.chosen]
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]  # ### setting the old square to empty
-                                            moving = False
-                                            allow_move = False
-                                            self.Turn = self.swap_colour(self.Turn)
+                            if self.selected_to_x_y(self.chosen)[1] == self.chosen_piece[
+                                4]:  # if the y coordinate is the same as the moving to where the mouse is
+                                if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                    pass  # don't wanna take my own piece
 
-                            if self.chosen_piece[1] == "Rook":  # ### DONE ROOK
+                                elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                    if self.board[
+                                        self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                        pass
 
-                                #  ########################## afaik, this works perfectly fine
-                                if self.selected_to_x_y(self.chosen)[0] == self.chosen_piece[
-                                    3]:  # if the x coordinate is the same as the moving to where the mouse is
-                                    if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                        pass  # don't wanna take my own piece
-                                    elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                        if self.board[
-                                            self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
-                                            pass
+                                    self.allow_move = True
+                                    for i in range(1, self.selected_to_x_y(self.chosen)[0] - self.chosen_piece[
+                                        3]):  # ###### to find the the the distance between original and place i want to move
+                                        if self.Turn in self.board[self.chosen_index + i][0]:
+                                            self.allow_move = False
+                                            break
 
-                                        self.allow_move = True
-                                        for i in range(1, self.selected_to_x_y(self.chosen)[1] - self.chosen_piece[
-                                            4]):  # ##### to find the the the distance between original and place i want to move
-                                            if self.Turn in self.board[self.chosen_index + 8 * i][0]:
+                                    if self.allow_move:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[self.chosen] = self.chosen_piece
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]
+                                        self.moving = False
+
+                                        self.allow_move = False
+                                        self.Turn = self.swap_colour(self.Turn)
+
+                        if self.chosen_piece[1] == "Bishop":
+
+                            if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                pass  # don't wanna take my own piece
+                            elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                if self.board[
+                                    self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                    pass
+
+                                self.allow_move = True
+
+                                if abs(self.selected_to_x_y(self.chosen)[0] -
+                                       self.selected_to_x_y(self.chosen_index)[0]) == abs(
+                                    self.selected_to_x_y(self.chosen)[1] -
+                                    self.selected_to_x_y(self.chosen_index)[
+                                        1]):  # ### to ensure along a diaganol
+                                    try:
+                                        for i in range(1, self.selected_to_x_y(self.chosen)[0] -
+                                                          self.selected_to_x_y(self.chosen_index)[0]):
+
+                                            if self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
+                                                                     self.selected_to_x_y(self.chosen)[1] + i)]:
                                                 self.allow_move = False
                                                 break
-
-                                        if self.allow_move:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[
-                                                self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
-                                            self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
-                                                0]  # #### correcting values within the self.board[self.chosen]
-                                            self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
-                                                1]  # #### correcting values within the self.board[self.chosen]
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]  # ### setting the old square to empty
-                                            self.moving = False
-                                            self.allow_move = False
-                                            self.Turn = self.swap_colour(self.Turn)
-
-                                # #################### AFAIK, Done
-
-                                # print(self.chosen_piece)
-                                # print(self.selected_to_x_y(self.chosen)[1], self.chosen_piece[4])
-
-                                if self.selected_to_x_y(self.chosen)[1] == self.chosen_piece[
-                                    4]:  # if the y coordinate is the same as the moving to where the mouse is
-                                    if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                        pass  # don't wanna take my own piece
-
-                                    elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                        if self.board[
-                                            self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
-                                            pass
-
-                                        self.allow_move = True
-                                        for i in range(1, self.selected_to_x_y(self.chosen)[0] - self.chosen_piece[
-                                            3]):  # ###### to find the the the distance between original and place i want to move
-                                            if self.Turn in self.board[self.chosen_index + i][0]:
-                                                allow_move = False
+                                            elif self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] + i,
+                                                                     self.selected_to_x_y(self.chosen)[1] - i)]:
+                                                self.allow_move = False
                                                 break
+                                            elif self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
+                                                                     self.selected_to_x_y(self.chosen)[1] + i)]:
+                                                self.allow_move = False
+                                                break
+                                            elif self.Turn in self.board[
+                                                self.x_y_to_selected(self.selected_to_x_y(self.chosen)[0] - i,
+                                                                     self.selected_to_x_y(self.chosen)[1] - i)]:
+                                                self.allow_move = False
+                                                break
+                                    except:
+                                        pass
+                                    if self.allow_move:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[
+                                            self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
+                                        self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
+                                            0]  # #### correcting values within the self.board[self.chosen]
+                                        self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
+                                            1]  # #### correcting values within the self.board[self.chosen]
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]  # ### setting the old square to empty
+                                        moving = False
+                                        allow_move = False
+                                        self.Turn = self.swap_colour(self.Turn)
 
-                                        if self.allow_move:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[self.chosen] = self.chosen_piece
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]
-                                            self.moving = False
+                        if self.chosen_piece[1] == "Rook":  # ### DONE ROOK
+
+                            #  ########################## afaik, this works perfectly fine
+                            if self.selected_to_x_y(self.chosen)[0] == self.chosen_piece[
+                                3]:  # if the x coordinate is the same as the moving to where the mouse is
+                                if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                    pass  # don't wanna take my own piece
+                                elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                    if self.board[
+                                        self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                        pass
+
+                                    self.allow_move = True
+                                    for i in range(1, self.selected_to_x_y(self.chosen)[1] - self.chosen_piece[
+                                        4]):  # ##### to find the the the distance between original and place i want to move
+                                        if self.Turn in self.board[self.chosen_index + 8 * i][0]:
                                             self.allow_move = False
-                                            self.Turn = self.swap_colour(self.Turn)
+                                            break
 
-                            if self.chosen_piece[1] == "King":  # AFAIK, WORKING PERFECTLY FINE
+                                    if self.allow_move:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[
+                                            self.chosen] = self.chosen_piece  # ### making where the mouse is, the piece selected
+                                        self.board[self.chosen][3] = self.selected_to_x_y(self.chosen)[
+                                            0]  # #### correcting values within the self.board[self.chosen]
+                                        self.board[self.chosen][4] = self.selected_to_x_y(self.chosen)[
+                                            1]  # #### correcting values within the self.board[self.chosen]
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]  # ### setting the old square to empty
+                                        self.moving = False
+                                        self.allow_move = False
+                                        self.Turn = self.swap_colour(self.Turn)
+
+                            # #################### AFAIK, Done
+
+                            # print(self.chosen_piece)
+                            # print(self.selected_to_x_y(self.chosen)[1], self.chosen_piece[4])
+
+                            if self.selected_to_x_y(self.chosen)[1] == self.chosen_piece[
+                                4]:  # if the y coordinate is the same as the moving to where the mouse is
                                 if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
                                     pass  # don't wanna take my own piece
+
                                 elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
                                     if self.board[
                                         self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
                                         pass
 
-                                    if self.chosen == self.chosen_index + 1:  # to the right
+                                    self.allow_move = True
+                                    for i in range(1, self.selected_to_x_y(self.chosen)[0] - self.chosen_piece[
+                                        3]):  # ###### to find the the the distance between original and place i want to move
+                                        if self.Turn in self.board[self.chosen_index + i][0]:
+                                            allow_move = False
+                                            break
+
+                                    if self.allow_move:
                                         print("taking " + str(self.board[self.chosen]))
                                         self.board[self.chosen] = self.chosen_piece
                                         self.board[self.chosen_index] = ["Null", "Null", "noPicture",
                                                                          self.selected_to_x_y(self.chosen_index)[0],
                                                                          self.selected_to_x_y(self.chosen_index)[1],
                                                                          "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
                                         self.moving = False
+                                        self.allow_move = False
                                         self.Turn = self.swap_colour(self.Turn)
 
-                                    if self.chosen == self.chosen_index - 1:  # to the left
-                                        print("taking " + str(self.board[self.chosen]))
-                                        self.board[self.chosen] = self.chosen_piece
-                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                         self.selected_to_x_y(self.chosen_index)[0],
-                                                                         self.selected_to_x_y(self.chosen_index)[1],
-                                                                         "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
-                                        self.moving = False
-                                        self.Turn = self.swap_colour(self.Turn)
+                        if self.chosen_piece[1] == "King":  # AFAIK, WORKING PERFECTLY FINE
+                            if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                pass  # don't wanna take my own piece
+                            elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                if self.board[
+                                    self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                    pass
 
-                                    if self.chosen == self.chosen_index - 7:  # top right
-                                        print("taking " + str(self.board[self.chosen]))
-                                        self.board[self.chosen] = self.chosen_piece
-                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                         self.selected_to_x_y(self.chosen_index)[0],
-                                                                         self.selected_to_x_y(self.chosen_index)[1],
-                                                                         "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
-                                        self.moving = False
+                                if self.chosen == self.chosen_index + 1:  # to the right
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
+                                    self.Turn = self.swap_colour(self.Turn)
 
-                                    if self.chosen == self.chosen_index - 8:  # above
-                                        print("taking " + str(self.board[self.chosen]))
-                                        self.board[self.chosen] = self.chosen_piece
-                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                         self.selected_to_x_y(self.chosen_index)[0],
-                                                                         self.selected_to_x_y(self.chosen_index)[1],
-                                                                         "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
-                                        self.moving = False
-                                        self.Turn = self.swap_colour(self.Turn)
+                                if self.chosen == self.chosen_index - 1:  # to the left
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
+                                    self.Turn = self.swap_colour(self.Turn)
 
-                                    if self.chosen == self.chosen_index - 9:  # top left
-                                        print("taking " + str(self.board[self.chosen]))
-                                        self.board[self.chosen] = self.chosen_piece
-                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                         self.selected_to_x_y(self.chosen_index)[0],
-                                                                         self.selected_to_x_y(self.chosen_index)[1],
-                                                                         "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
-                                        self.moving = False
-                                        self.Turn = self.swap_colour(self.Turn)
+                                if self.chosen == self.chosen_index - 7:  # top right
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
 
-                                    if self.chosen == self.chosen_index + 7:  # bottom left
-                                        print("taking " + str(self.board[self.chosen]))
-                                        self.board[self.chosen] = self.chosen_piece
-                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                         self.selected_to_x_y(self.chosen_index)[0],
-                                                                         self.selected_to_x_y(self.chosen_index)[1],
-                                                                         "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
-                                        self.moving = False
-                                        self.Turn = self.swap_colour(self.Turn)
+                                if self.chosen == self.chosen_index - 8:  # above
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
+                                    self.Turn = self.swap_colour(self.Turn)
 
-                                    if self.chosen == self.chosen_index + 8:  # down
-                                        print("taking " + str(self.board[self.chosen]))
-                                        self.board[self.chosen] = self.chosen_piece
-                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                         self.selected_to_x_y(self.chosen_index)[0],
-                                                                         self.selected_to_x_y(self.chosen_index)[1],
-                                                                         "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
-                                        self.moving = False
-                                        self.Turn = self.swap_colour(self.Turn)
+                                if self.chosen == self.chosen_index - 9:  # top left
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
+                                    self.Turn = self.swap_colour(self.Turn)
 
-                                    if self.chosen == self.chosen_index + 9:  # bottom right
-                                        print("taking " + str(self.board[self.chosen]))
-                                        self.board[self.chosen] = self.chosen_piece
-                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                         self.selected_to_x_y(self.chosen_index)[0],
-                                                                         self.selected_to_x_y(self.chosen_index)[1],
-                                                                         "dead"]
-                                        self.board[self.chosen][6] = False  # it has now moved
-                                        self.moving = False
-                                        self.Turn = self.swap_colour(self.Turn)
+                                if self.chosen == self.chosen_index + 7:  # bottom left
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
+                                    self.Turn = self.swap_colour(self.Turn)
 
-                                    if self.chosen == self.chosen_index + 2:  # castling rules to right
-                                        print("Castling right")
-                                        try:
-                                            if self.board[self.chosen_index][6] and self.board[self.chosen_index + 3][
-                                                6]:  # if neither rook or king has moved before
-                                                if self.board[self.chosen][0] == "Null" and self.board[self.chosen - 1][
-                                                    0] == "Null":  # if both spaces empty to castle to right
-                                                    self.board[self.chosen] = self.board[self.chosen_index]
-                                                    self.board[self.chosen][6] = False
-                                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                     self.selected_to_x_y(
-                                                                                         self.chosen + 1)[0],
-                                                                                     self.selected_to_x_y(
-                                                                                         self.chosen + 1)[1], "dead"]
-                                                    self.board[self.chosen - 1] = self.board[self.chosen + 1]
-                                                    self.board[self.chosen - 1][6] = False
-                                                    self.board[self.chosen + 1] = ["Null", "Null", "noPicture",
-                                                                                   self.selected_to_x_y(
-                                                                                       self.chosen + 1)[0],
-                                                                                   self.selected_to_x_y(
-                                                                                       self.chosen + 1)[1], "dead"]
-                                                    self.Turn = self.swap_colour(self.Turn)
-                                                    self.moving = False
-                                        except:
-                                            pass
+                                if self.chosen == self.chosen_index + 8:  # down
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
+                                    self.Turn = self.swap_colour(self.Turn)
 
-                                    if self.chosen == self.chosen_index - 2:
-                                        print("Castling Left")
-                                        try:
-                                            if self.board[self.chosen_index][6] and self.board[self.chosen_index - 4][
-                                                6]:  # if neither rook or king has moved before
-                                                if self.board[self.chosen][0] == "Null" and self.board[self.chosen - 1][
-                                                    0] == "Null" and self.board[self.chosen + 1][
-                                                    0] == "Null":  # if both spaces empty to castle to right
-                                                    self.board[self.chosen] = self.board[self.chosen_index]
-                                                    self.board[self.chosen][6] = False
-                                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                     self.selected_to_x_y(
-                                                                                         self.chosen + 2)[0],
-                                                                                     self.selected_to_x_y(
-                                                                                         self.chosen + 2)[1], "dead"]
-                                                    self.board[self.chosen + 1] = self.board[self.chosen - 2]
-                                                    self.board[self.chosen + 1][6] = False
-                                                    self.board[self.chosen - 2] = ["Null", "Null", "noPicture",
-                                                                                   self.selected_to_x_y(
-                                                                                       self.chosen - 2)[0],
-                                                                                   self.selected_to_x_y(
-                                                                                       self.chosen - 2)[1], "dead"]
+                                if self.chosen == self.chosen_index + 9:  # bottom right
+                                    print("taking " + str(self.board[self.chosen]))
+                                    self.board[self.chosen] = self.chosen_piece
+                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                     self.selected_to_x_y(self.chosen_index)[0],
+                                                                     self.selected_to_x_y(self.chosen_index)[1],
+                                                                     "dead"]
+                                    self.board[self.chosen][6] = False  # it has now moved
+                                    self.moving = False
+                                    self.Turn = self.swap_colour(self.Turn)
 
-                                                    self.Turn = self.swap_colour(self.Turn)
-                                                    self.moving = False
-                                        except:
-                                            pass
-
-                            if self.chosen_piece[1] == "Knight":  # ###DONE
-
-                                if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                    pass  # don't wanna take my own piece
-                                elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                    if self.board[
-                                        self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                if self.chosen == self.chosen_index + 2:  # castling rules to right
+                                    print("Castling right")
+                                    try:
+                                        if self.board[self.chosen_index][6] and self.board[self.chosen_index + 3][
+                                            6]:  # if neither rook or king has moved before
+                                            if self.board[self.chosen][0] == "Null" and self.board[self.chosen - 1][
+                                                0] == "Null":  # if both spaces empty to castle to right
+                                                self.board[self.chosen] = self.board[self.chosen_index]
+                                                self.board[self.chosen][6] = False
+                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                                 self.selected_to_x_y(
+                                                                                     self.chosen + 1)[0],
+                                                                                 self.selected_to_x_y(
+                                                                                     self.chosen + 1)[1], "dead"]
+                                                self.board[self.chosen - 1] = self.board[self.chosen + 1]
+                                                self.board[self.chosen - 1][6] = False
+                                                self.board[self.chosen + 1] = ["Null", "Null", "noPicture",
+                                                                               self.selected_to_x_y(
+                                                                                   self.chosen + 1)[0],
+                                                                               self.selected_to_x_y(
+                                                                                   self.chosen + 1)[1], "dead"]
+                                                self.Turn = self.swap_colour(self.Turn)
+                                                self.moving = False
+                                    except:
                                         pass
 
-                                    if self.selected_to_x_y(self.chosen)[0] == self.selected_to_x_y(self.chosen_index)[
-                                        0] + 2 or \
-                                            self.selected_to_x_y(self.chosen)[0] == \
-                                            self.selected_to_x_y(self.chosen_index)[0] - 2:
-                                        if self.selected_to_x_y(self.chosen)[1] == \
-                                                self.selected_to_x_y(self.chosen_index)[1] + 1:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[self.chosen] = self.chosen_piece
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]
-                                            self.moving = False
-                                            self.Turn = self.swap_colour(self.Turn)
+                                if self.chosen == self.chosen_index - 2:
+                                    print("Castling Left")
+                                    try:
+                                        if self.board[self.chosen_index][6] and self.board[self.chosen_index - 4][
+                                            6]:  # if neither rook or king has moved before
+                                            if self.board[self.chosen][0] == "Null" and self.board[self.chosen - 1][
+                                                0] == "Null" and self.board[self.chosen + 1][
+                                                0] == "Null":  # if both spaces empty to castle to right
+                                                self.board[self.chosen] = self.board[self.chosen_index]
+                                                self.board[self.chosen][6] = False
+                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                                 self.selected_to_x_y(
+                                                                                     self.chosen + 2)[0],
+                                                                                 self.selected_to_x_y(
+                                                                                     self.chosen + 2)[1], "dead"]
+                                                self.board[self.chosen + 1] = self.board[self.chosen - 2]
+                                                self.board[self.chosen + 1][6] = False
+                                                self.board[self.chosen - 2] = ["Null", "Null", "noPicture",
+                                                                               self.selected_to_x_y(
+                                                                                   self.chosen - 2)[0],
+                                                                               self.selected_to_x_y(
+                                                                                   self.chosen - 2)[1], "dead"]
 
-                                        elif self.selected_to_x_y(self.chosen)[1] == \
-                                                self.selected_to_x_y(self.chosen_index)[1] - 1:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[self.chosen] = self.chosen_piece
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]
-                                            self.moving = False
-                                            self.Turn = self.swap_colour(self.Turn)
+                                                self.Turn = self.swap_colour(self.Turn)
+                                                self.moving = False
+                                    except:
+                                        pass
 
-                                    if self.selected_to_x_y(self.chosen)[0] == self.selected_to_x_y(self.chosen_index)[
-                                        0] + 1 or \
-                                            self.selected_to_x_y(self.chosen)[0] == \
-                                            self.selected_to_x_y(self.chosen_index)[0] - 1:
-                                        if self.selected_to_x_y(self.chosen)[1] == \
-                                                self.selected_to_x_y(self.chosen_index)[1] + 2:
-                                            print("taking " + str(self.board[self.chosen]))
-                                            self.board[self.chosen] = self.chosen_piece
-                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]
-                                            self.moving = False
-                                            self.Turn = self.swap_colour(self.Turn)
+                        if self.chosen_piece[1] == "Knight":  # ###DONE
 
-                                        elif self.selected_to_x_y(self.chosen)[1] == \
-                                                self.selected_to_x_y(self.chosen_index)[1] - 2:
+                            if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                pass  # don't wanna take my own piece
+                            elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                if self.board[
+                                    self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                    pass
+
+                                if self.selected_to_x_y(self.chosen)[0] == self.selected_to_x_y(self.chosen_index)[
+                                    0] + 2 or \
+                                        self.selected_to_x_y(self.chosen)[0] == \
+                                        self.selected_to_x_y(self.chosen_index)[0] - 2:
+                                    if self.selected_to_x_y(self.chosen)[1] == \
+                                            self.selected_to_x_y(self.chosen_index)[1] + 1:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[self.chosen] = self.chosen_piece
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]
+                                        self.moving = False
+                                        self.Turn = self.swap_colour(self.Turn)
+
+                                    elif self.selected_to_x_y(self.chosen)[1] == \
+                                            self.selected_to_x_y(self.chosen_index)[1] - 1:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[self.chosen] = self.chosen_piece
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]
+                                        self.moving = False
+                                        self.Turn = self.swap_colour(self.Turn)
+
+                                if self.selected_to_x_y(self.chosen)[0] == self.selected_to_x_y(self.chosen_index)[
+                                    0] + 1 or \
+                                        self.selected_to_x_y(self.chosen)[0] == \
+                                        self.selected_to_x_y(self.chosen_index)[0] - 1:
+                                    if self.selected_to_x_y(self.chosen)[1] == \
+                                            self.selected_to_x_y(self.chosen_index)[1] + 2:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[self.chosen] = self.chosen_piece
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]
+                                        self.moving = False
+                                        self.Turn = self.swap_colour(self.Turn)
+
+                                    elif self.selected_to_x_y(self.chosen)[1] == \
+                                            self.selected_to_x_y(self.chosen_index)[1] - 2:
+                                        print("taking " + str(self.board[self.chosen]))
+                                        self.board[self.chosen] = self.chosen_piece
+                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                         self.selected_to_x_y(self.chosen_index)[0],
+                                                                         self.selected_to_x_y(self.chosen_index)[1],
+                                                                         "dead"]
+                                        self.moving = False
+                                        self.Turn = self.swap_colour()
+
+                        if self.chosen_piece[1] == "Pawn":
+
+                            if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
+                                pass  # don't wanna take my own piece
+                            elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
+                                if self.board[
+                                    self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
+                                    pass
+                                if self.board[self.chosen_index][0] == "Black":
+                                    if self.board[self.chosen][
+                                        0] == "Null":  # ## If pawn just wants to traverse, and not capture
+                                        if self.selected_to_x_y(self.chosen)[0] == \
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    0]:  # x position will never change so need to check this
+                                            if self.selected_to_x_y(self.chosen_index)[1] == 1:  # if on 2nd rank
+                                                if self.selected_to_x_y(self.chosen)[1] == 3:  # to double jump
+                                                    print("taking " + str(self.board[self.chosen]))
+                                                    self.board[self.chosen] = self.chosen_piece
+                                                    self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                        self.selected_to_x_y(self.chosen)[0], \
+                                                            self.selected_to_x_y(self.chosen)[1]
+                                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                                     self.selected_to_x_y(
+                                                                                         self.chosen_index)[0],
+                                                                                     self.selected_to_x_y(
+                                                                                         self.chosen_index)[1],
+                                                                                     "dead"]
+                                                    self.moving = False
+                                                    self.Turn = self.swap_colour()
+
+                                                    # #### Creating ghost pawn to allow en passant
+                                                    self.board[self.chosen_index + 8] = ["Black", "Pawn",
+                                                                                         "noPicture",
+                                                                                         self.selected_to_x_y(
+                                                                                             self.chosen_index)[
+                                                                                             0],
+                                                                                         self.selected_to_x_y(
+                                                                                             self.chosen_index)[
+                                                                                             1] + 1, "ghost"]
+                                                    check_ghost = True
+
+                                            if self.selected_to_x_y(self.chosen)[1] == \
+                                                    self.selected_to_x_y(self.chosen_index)[
+                                                        1] + 1:
+                                                print("taking " + str(self.board[self.chosen]))
+                                                self.board[self.chosen] = self.chosen_piece
+                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                    self.selected_to_x_y(self.chosen)[0], \
+                                                        self.selected_to_x_y(self.chosen)[1]
+                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                                 self.selected_to_x_y(
+                                                                                     self.chosen_index)[0],
+                                                                                 self.selected_to_x_y(
+                                                                                     self.chosen_index)[1],
+                                                                                 "dead"]
+                                                self.moving = False
+                                                self.Turn = self.swap_colour()
+
+                                    if self.board[self.chosen][5] == "ghost":
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] - 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] + 1):  # bottom left
                                             print("taking " + str(self.board[self.chosen]))
                                             self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
+                                                    self.selected_to_x_y(self.chosen)[
+                                                        1]
                                             self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                             self.selected_to_x_y(self.chosen_index)[0],
-                                                                             self.selected_to_x_y(self.chosen_index)[1],
-                                                                             "dead"]
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            self.board[self.chosen - 8] = ["Null", "Null", "noPicture",
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               0],
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               1], "dead"]
+                                            print("ghost taken as ", self.Turn)
                                             self.moving = False
                                             self.Turn = self.swap_colour()
 
-                            if self.chosen_piece[1] == "Pawn":
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] + 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] + 1):  # bottom right
 
-                                if self.board[self.chosen][0] == self.Turn:  # Cant take my own piece
-                                    pass  # don't wanna take my own piece
-                                elif self.event.type == pygame.MOUSEBUTTONDOWN:  # #### taking the initial click as me wanting to move piece to its own location
-                                    if self.board[
-                                        self.chosen] == self.chosen_piece:  # so it doesnt swap to its own location
-                                        pass
-                                    if self.board[self.chosen_index][0] == "Black":
-                                        if self.board[self.chosen][
-                                            0] == "Null":  # ## If pawn just wants to traverse, and not capture
-                                            if self.selected_to_x_y(self.chosen)[0] == \
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        0]:  # x position will never change so need to check this
-                                                if self.selected_to_x_y(self.chosen_index)[1] == 1:  # if on 2nd rank
-                                                    if self.selected_to_x_y(self.chosen)[1] == 3:  # to double jump
-                                                        print("taking " + str(self.board[self.chosen]))
-                                                        self.board[self.chosen] = self.chosen_piece
-                                                        self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                            self.selected_to_x_y(self.chosen)[0], \
-                                                            self.selected_to_x_y(self.chosen)[1]
-                                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                         self.selected_to_x_y(
-                                                                                             self.chosen_index)[0],
-                                                                                         self.selected_to_x_y(
-                                                                                             self.chosen_index)[1],
-                                                                                         "dead"]
-                                                        self.moving = False
-                                                        self.Turn = self.swap_colour()
+                                            print("taking " + str(self.board[self.chosen]))
+                                            self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
+                                                    self.selected_to_x_y(self.chosen)[
+                                                        1]
+                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            self.board[self.chosen - 8] = ["Null", "Null", "noPicture",
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               0],
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               1], "dead"]
+                                            print("ghost taken as ", self.Turn)
+                                            self.moving = False
+                                            self.Turn = self.swap_colour(self.Turn)
+                                            print("board is now", str(self.board[self.chosen]))
 
-                                                        # #### Creating ghost pawn to allow en passant
-                                                        self.board[self.chosen_index + 8] = ["Black", "Pawn",
-                                                                                             "noPicture",
-                                                                                             self.selected_to_x_y(
-                                                                                                 self.chosen_index)[
-                                                                                                 0],
-                                                                                             self.selected_to_x_y(
-                                                                                                 self.chosen_index)[
-                                                                                                 1] + 1, "ghost"]
-                                                        check_ghost = True
+                                    elif self.board[self.chosen][0] != self.Turn and self.board[self.chosen][
+                                        0] != "Null":  # if pawn wants to capture
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] - 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] + 1):  # bottom left
+                                            print("taking " + str(self.board[self.chosen]))
+                                            self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
+                                                    self.selected_to_x_y(self.chosen)[
+                                                        1]
+                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            moving = False
+                                            self.Turn = self.swap_colour(self.Turn)
 
-                                                if self.selected_to_x_y(self.chosen)[1] == \
-                                                        self.selected_to_x_y(self.chosen_index)[
-                                                            1] + 1:
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] + 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] + 1):  # bottom right
+                                            print("taking " + str(self.board[self.chosen]))
+                                            self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
+                                                    self.selected_to_x_y(self.chosen)[
+                                                        1]
+                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            self.moving = False
+                                            self.Turn = self.swap_colour()
+
+                                # #######
+
+                                elif self.board[self.chosen_index][0] == "White":
+                                    if self.board[self.chosen][
+                                        0] == "Null":  # ## If pawn just wants to traverse, and not capture
+                                        if self.selected_to_x_y(self.chosen)[0] == \
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    0]:  # x position will never change so need to check this
+                                            if self.selected_to_x_y(self.chosen_index)[1] == 6:  # if on 7th rank
+                                                if self.selected_to_x_y(self.chosen)[1] == 4:  # to double jump
                                                     print("taking " + str(self.board[self.chosen]))
                                                     self.board[self.chosen] = self.chosen_piece
                                                     self.board[self.chosen][3], self.board[self.chosen][4] = \
                                                         self.selected_to_x_y(self.chosen)[0], \
-                                                        self.selected_to_x_y(self.chosen)[1]
+                                                            self.selected_to_x_y(self.chosen)[1]
                                                     self.board[self.chosen_index] = ["Null", "Null", "noPicture",
                                                                                      self.selected_to_x_y(
                                                                                          self.chosen_index)[0],
@@ -1777,241 +1845,136 @@ class Chess():
                                                     self.moving = False
                                                     self.Turn = self.swap_colour()
 
-                                        if self.board[self.chosen][5] == "ghost":
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] - 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] + 1):  # bottom left
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        1]
-                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[0],
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                self.board[self.chosen - 8] = ["Null", "Null", "noPicture",
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   0],
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   1], "dead"]
-                                                print("ghost taken as ", self.Turn)
-                                                self.moving = False
-                                                self.Turn = self.swap_colour()
-
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] + 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] + 1):  # bottom right
-
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        1]
-                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[0],
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                self.board[self.chosen - 8] = ["Null", "Null", "noPicture",
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   0],
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   1], "dead"]
-                                                print("ghost taken as ", self.Turn)
-                                                self.moving = False
-                                                self.Turn = self.swap_colour(self.Turn)
-                                                print("board is now", str(self.board[self.chosen]))
-
-                                        elif self.board[self.chosen][0] != self.Turn and self.board[self.chosen][
-                                            0] != "Null":  # if pawn wants to capture
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] - 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] + 1):  # bottom left
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        1]
-                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[0],
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                moving = False
-                                                self.Turn = self.swap_colour(self.Turn)
-
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] + 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] + 1):  # bottom right
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        1]
-                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[0],
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                self.moving = False
-                                                self.Turn = self.swap_colour()
-
-                                    # #######
-
-                                    elif self.board[self.chosen_index][0] == "White":
-                                        if self.board[self.chosen][
-                                            0] == "Null":  # ## If pawn just wants to traverse, and not capture
-                                            if self.selected_to_x_y(self.chosen)[0] == \
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        0]:  # x position will never change so need to check this
-                                                if self.selected_to_x_y(self.chosen_index)[1] == 6:  # if on 7th rank
-                                                    if self.selected_to_x_y(self.chosen)[1] == 4:  # to double jump
-                                                        print("taking " + str(self.board[self.chosen]))
-                                                        self.board[self.chosen] = self.chosen_piece
-                                                        self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                            self.selected_to_x_y(self.chosen)[0], \
-                                                            self.selected_to_x_y(self.chosen)[1]
-                                                        self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                    # #### Creating ghost pawn to allow en passant
+                                                    self.board[self.chosen_index - 8] = ["White", "Pawn",
+                                                                                         "noPicture",
                                                                                          self.selected_to_x_y(
-                                                                                             self.chosen_index)[0],
+                                                                                             self.chosen_index)[
+                                                                                             0],
                                                                                          self.selected_to_x_y(
-                                                                                             self.chosen_index)[1],
-                                                                                         "dead"]
-                                                        self.moving = False
-                                                        self.Turn = self.swap_colour()
+                                                                                             self.chosen_index)[
+                                                                                             1] + 1, "ghost"]
+                                                    self.check_ghost = True
 
-                                                        # #### Creating ghost pawn to allow en passant
-                                                        self.board[self.chosen_index - 8] = ["White", "Pawn",
-                                                                                             "noPicture",
-                                                                                             self.selected_to_x_y(
-                                                                                                 self.chosen_index)[
-                                                                                                 0],
-                                                                                             self.selected_to_x_y(
-                                                                                                 self.chosen_index)[
-                                                                                                 1] + 1, "ghost"]
-                                                        self.check_ghost = True
-
-                                                if self.selected_to_x_y(self.chosen)[1] == \
-                                                        self.selected_to_x_y(self.chosen_index)[
-                                                            1] - 1:
-                                                    print("taking " + str(self.board[self.chosen]))
-                                                    self.board[self.chosen] = self.chosen_piece
-                                                    self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                        self.selected_to_x_y(self.chosen)[0], \
+                                            if self.selected_to_x_y(self.chosen)[1] == \
+                                                    self.selected_to_x_y(self.chosen_index)[
+                                                        1] - 1:
+                                                print("taking " + str(self.board[self.chosen]))
+                                                self.board[self.chosen] = self.chosen_piece
+                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                    self.selected_to_x_y(self.chosen)[0], \
                                                         self.selected_to_x_y(self.chosen)[1]
-                                                    self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                     self.selected_to_x_y(
-                                                                                         self.chosen_index)[0],
-                                                                                     self.selected_to_x_y(
-                                                                                         self.chosen_index)[1],
-                                                                                     "dead"]
-                                                    self.moving = False
-                                                    self.Turn = self.swap_colour()
-
-                                        if self.board[self.chosen][5] == "ghost":  # ### if can en passant
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] - 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] - 1):  # top left
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        1]
                                                 self.board[self.chosen_index] = ["Null", "Null", "noPicture",
                                                                                  self.selected_to_x_y(
                                                                                      self.chosen_index)[0],
                                                                                  self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                self.board[self.chosen + 8] = ["Null", "Null", "noPicture",
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   0],
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   1], "dead"]
-                                                print("ghost taken as ", self.Turn)
+                                                                                     self.chosen_index)[1],
+                                                                                 "dead"]
                                                 self.moving = False
                                                 self.Turn = self.swap_colour()
 
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] + 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] - 1):  # top right
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
+                                    if self.board[self.chosen][5] == "ghost":  # ### if can en passant
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] - 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] - 1):  # top left
+                                            print("taking " + str(self.board[self.chosen]))
+                                            self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
                                                     self.selected_to_x_y(self.chosen)[
                                                         1]
-                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[0],
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                self.board[self.chosen + 8] = ["Null", "Null", "noPicture",
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   0],
-                                                                               self.selected_to_x_y(self.chosen_index)[
-                                                                                   1], "dead"]
-                                                print("ghost taken as ", self.Turn)
-                                                self.moving = False
-                                                self.Turn = self.swap_colour()
+                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            self.board[self.chosen + 8] = ["Null", "Null", "noPicture",
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               0],
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               1], "dead"]
+                                            print("ghost taken as ", self.Turn)
+                                            self.moving = False
+                                            self.Turn = self.swap_colour()
 
-                                        elif self.board[self.chosen][0] != self.Turn and self.board[self.chosen][
-                                            0] != "Null":  # if pawn wants to capture diagonally normally
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] - 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] - 1):  # top left
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] + 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] - 1):  # top right
+                                            print("taking " + str(self.board[self.chosen]))
+                                            self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
                                                     self.selected_to_x_y(self.chosen)[
                                                         1]
-                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[0],
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                self.moving = False
-                                                self.Turn = self.swap_colour()
+                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            self.board[self.chosen + 8] = ["Null", "Null", "noPicture",
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               0],
+                                                                           self.selected_to_x_y(self.chosen_index)[
+                                                                               1], "dead"]
+                                            print("ghost taken as ", self.Turn)
+                                            self.moving = False
+                                            self.Turn = self.swap_colour()
 
-                                            if self.chosen == self.x_y_to_selected(
-                                                    self.selected_to_x_y(self.chosen_index)[0] + 1,
-                                                    self.selected_to_x_y(self.chosen_index)[
-                                                        1] - 1):  # top right
-                                                print("taking " + str(self.board[self.chosen]))
-                                                self.board[self.chosen] = self.chosen_piece
-                                                self.board[self.chosen][3], self.board[self.chosen][4] = \
-                                                    self.selected_to_x_y(self.chosen)[
-                                                        0], \
+                                    elif self.board[self.chosen][0] != self.Turn and self.board[self.chosen][
+                                        0] != "Null":  # if pawn wants to capture diagonally normally
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] - 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] - 1):  # top left
+                                            print("taking " + str(self.board[self.chosen]))
+                                            self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
                                                     self.selected_to_x_y(self.chosen)[
                                                         1]
-                                                self.board[self.chosen_index] = ["Null", "Null", "noPicture",
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[0],
-                                                                                 self.selected_to_x_y(
-                                                                                     self.chosen_index)[1], "dead"]
-                                                self.moving = False
-                                                self.Turn = self.swap_colour()
+                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            self.moving = False
+                                            self.Turn = self.swap_colour()
+
+                                        if self.chosen == self.x_y_to_selected(
+                                                self.selected_to_x_y(self.chosen_index)[0] + 1,
+                                                self.selected_to_x_y(self.chosen_index)[
+                                                    1] - 1):  # top right
+                                            print("taking " + str(self.board[self.chosen]))
+                                            self.board[self.chosen] = self.chosen_piece
+                                            self.board[self.chosen][3], self.board[self.chosen][4] = \
+                                                self.selected_to_x_y(self.chosen)[
+                                                    0], \
+                                                    self.selected_to_x_y(self.chosen)[
+                                                        1]
+                                            self.board[self.chosen_index] = ["Null", "Null", "noPicture",
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[0],
+                                                                             self.selected_to_x_y(
+                                                                                 self.chosen_index)[1], "dead"]
+                                            self.moving = False
+                                            self.Turn = self.swap_colour()
+
+
+
+
+    def run(self):
+        board_display = threading.Thread(target = self.solo_mode_display)
+        board_display.start()
+        self.solo_mode_logic()
+
+        board_display.join()
+
+
 
 
 if __name__ == "__main__":
