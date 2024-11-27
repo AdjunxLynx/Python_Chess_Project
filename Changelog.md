@@ -1,3 +1,1 @@
-
-
-Removes Logging in Feature as this isnt what chess is about.
+Makes code for Credits page and main page to be more modular and readable

@@ -1065,6 +1065,47 @@ class Chess():
         pygame.event.set_blocked(1024)  # blocks mouse movement to be detected
         pygame.event.set_blocked(769)
 
+    def main_page_logic(self):
+        if self.clickableButton(380, 200, 600, 80):
+            self.mainPage = False
+            self.soloMode = True
+
+        if self.clickableButton(10, 100, 10, 35):
+            self.mainPage = False
+            self.Credits = True
+
+    def main_page_display(self):
+        self.DrawButton(self.grey, 380, 200, 600, 80, "Solo Mode")
+
+        # draws button for chess game
+
+        pygame.draw.rect(self.game_display, self.brown, (10, 10, 100, 35))
+        self.game_display.blit(self.font.render("Credits", True, self.black), (10, 10))
+        # draws button for credits screen
+
+    def credits_page_logic(self):
+        # draws a back button to go to main screen
+        if self.clickableButton(890, 70, 10, 50):
+            self.mainPage = True
+            self.Credits = False
+
+    def credits_page_display(self):
+        pygame.draw.rect(self.game_display, self.lBrown, (380, 200, 200, 80))
+        self.game_display.blit(self.font.render("Credits:", True, self.black), (410, 225))
+
+        self.game_display.blit(
+            self.font.render("https://levelup.gitconnected.com/chess-python-ca4532c7f5a4", True, self.black),
+            (60, 275))
+        self.game_display.blit(self.font.render("https://www.stackoverflow.com/adjunxlynx", True, self.black),
+                               (60, 305))
+        self.game_display.blit(self.font.render("https://www.google.com", True, self.black), (60, 335))
+        # my sources
+
+        self.game_display.blit(self.font.render("Made by Kamil Leocadie-Olsen", True, self.black), (250, 800))
+        # creator
+        self.DrawButton(self.black, 890, 60, 10, 50, "back")
+        # creates button for credits screen
+
     def run(self):
         while self.gameRunning:
 
@@ -1093,47 +1134,15 @@ class Chess():
             if self.typing_password:
                 selected_colour_password = (100, 255, 100)
 
-
-
             if self.mainPage:
-                font = pygame.font.SysFont("calibri", 30)
-                self.DrawButton(self.grey, 380, 200, 600, 80, "Solo Mode")
-                if self.clickableButton(380, 200, 600, 80):
-                    self.mainPage = False
-                    self.soloMode = True
+                self.main_page_display()
+                self.main_page_logic()
 
-                # draws button for chess game
-
-                pygame.draw.rect(self.game_display, self.brown, (10, 10, 100, 35))
-                self.game_display.blit(font.render("Credits", True, self.black), (10, 10))
-                # draws button for credits screen
-
-                if self.clickableButton(10, 100, 10, 35):
-                    self.mainPage = False
-                    self.Credits = True
-
-                # creates button for credits screen
             if self.Credits:
+                self.credits_page_logic()
+                self.credits_page_display()
 
-                pygame.draw.rect(self.game_display, self.lBrown, (380, 200, 200, 80))
-                self.game_display.blit(font.render("Credits:", True, self.black), (410, 225))
 
-                self.game_display.blit(
-                    font.render("https://levelup.gitconnected.com/chess-python-ca4532c7f5a4", True, self.black),
-                    (60, 275))
-                self.game_display.blit(font.render("https://www.stackoverflow.com/adjunxlynx", True, self.black),
-                                       (60, 305))
-                self.game_display.blit(font.render("https://www.google.com", True, self.black), (60, 335))
-                # my sources
-
-                self.game_display.blit(font.render("Made by Kamil Leocadie-Olsen", True, self.black), (250, 800))
-                # creator
-                self.DrawButton(self.black, 890, 60, 10, 50, "back")
-
-                # draws a back button to go to to main screen
-                if self.clickableButton(890, 70, 10, 50):
-                    self.mainPage = True
-                    self.Credits = False
 
             if self.soloMode:
 
