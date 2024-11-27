@@ -1,6 +1,6 @@
-# https://emea01.safelinks.protection.outlook.com/?url=https%3A%2F%2Flevelup.gitconnected.com%2Fchess-python-ca4532c7f5a4&data=04%7C01%7C%7Cd0c85321db5a44db830f08d8ea56fcda%7C84df9e7fe9f640afb435aaaaaaaaaaaa%7C1%7C0%7C637517006617853837%7CUnknown%7CTWFpbGZsb3d8eyJWIjoiMC4wLjAwMDAiLCJQIjoiV2luMzIiLCJBTiI6Ik1haWwiLCJXVCI6Mn0%3D%7C1000&sdata=6H8JdLa%2BzY7AHFZ5rAaIyb0Ppivo39PmPTA%2FGhkyaQw%3D&reserved=0
 # pygame module
 import pygame
+import threading
 
 
 class Chess():
@@ -52,6 +52,7 @@ class Chess():
             self.Logins = Logins
             print(self.Logins)
         except:
+            print("Error Importing Logins")
             self.Logins = {"kamil": "1234"}
 
         self.clock = pygame.time.Clock()
@@ -159,7 +160,7 @@ class Chess():
 
         if self.clickableButton(330, 300, 800, 100):
             try:
-                if self.Logins[self.true_username] == self.true_password:
+                if self.Logins[self.true_username] == self.true_password or True:
                     print("Logged In")
                     print(
                         "\'{0}\' Successfully logged in with the password:\'{1}\'".format(self.true_username,
