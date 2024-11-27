@@ -6,13 +6,14 @@ import threading
 class Chess():
     import pygame
 
-    def __init__(self, dimensions=960, fps=999999):
+    def __init__(self, dimensions=960, fps=60):
         self.event_list = None
         self.piece_image = None
         self.mouse_x, self.mouse_y = None, None
         pygame.init()
         self.Dimensions = dimensions
         self.font = pygame.font.SysFont("calibri", 30)
+
         # setting up the font for text
         self.black = (0, 0, 0)
         self.white = (255, 255, 255)
@@ -47,13 +48,6 @@ class Chess():
         self.hidden_password = ""
         self.typing_username = False
         self.typing_password = False
-        try:
-            from Logins import Logins
-            self.Logins = Logins
-            print(self.Logins)
-        except:
-            print("Error Importing Logins")
-            self.Logins = {"kamil": "1234"}
 
         self.clock = pygame.time.Clock()
 
@@ -66,9 +60,7 @@ class Chess():
 
         self.Credits = False
         self.soloMode = False  # will display the normal chess game when True
-        self.Login = True  # the first page is the Login page
-        self.mainPage = False  # will display the mainpage of the application when True
-        # the mainpage will consist of Start(soloMode), Options, and load(load game)
+        self.mainPage = True  # will display the mainpage of the application when True
 
         # ## moving Piece Variables
         self.movingPiece = False
@@ -84,8 +76,6 @@ class Chess():
 
         # ## Loading Images
         self.loading = True
-
-        # colour binary codes:
 
         # Chess self.board Display variables
         self.Turn = "White"
@@ -137,7 +127,6 @@ class Chess():
                             1] * self.boxL) + 20))  # self.board[i][2&3] to get x&y co-ordinates respectively
 
     def input_text(self, eventLists, name):
-
         try:
             # I don't even know why this works but returns letter pressed
             backspace = False
@@ -154,25 +143,6 @@ class Chess():
             print("Value error. most likely shift or caps lock pressed ")
         except:
             print("Unknown Error ")
-
-    def login(self):
-        self.DrawButton(self.black, 330, 300, 800, 100, "Login")
-
-        if self.clickableButton(330, 300, 800, 100):
-            try:
-                if self.Logins[self.true_username] == self.true_password or True:
-                    print("Logged In")
-                    print(
-                        "\'{0}\' Successfully logged in with the password:\'{1}\'".format(self.true_username,
-                                                                                          self.true_password))
-                    return True
-                else:
-                    print("Incorrect Password ")
-                    return False
-            except KeyError:
-                print("KeyError, No Username or Password to check for")
-            except Exception as x:
-                print(x)
 
     def selected(self):  # returns value of 0-64 based on chess self.board
         mouse_x, mouse_y = self.get_mouse()
@@ -1123,83 +1093,9 @@ class Chess():
             if self.typing_password:
                 selected_colour_password = (100, 255, 100)
 
-            if self.Login:
-                font = pygame.font.SysFont("calibri", 30)
-                pygame.draw.rect(self.game_display, self.grey, (330, 400, 300, 100), 5)
-                # creates username text box
-                pygame.draw.rect(self.game_display, self.grey, (330, 600, 300, 100), 5)
-                # creates username password box
 
-                self.game_display.blit(font.render(self.true_username, True, selected_colour_username), (350, 435))
-                # noinspection PyUnboundLocalVariable
-                self.game_display.blit(font.render(self.hidden_password, True, selected_colour_password), (350, 635))
-                # game_display.blit(font.render(true_password, True, selected_colour_password), (350, 700))
 
-                if self.username == "" and not self.typing_username:
-                    self.game_display.blit(font.render("username", True, selected_colour_username), (350, 435))
-                    # if empty and not ready to type, will display username
-                if self.password == "" and not self.typing_password:
-                    self.game_display.blit(font.render("hidden password", True, selected_colour_password), (350, 635))
-                    # if empty and not ready to type, will display password
-
-                self.hidden_password = "*" * len(self.true_password)
-                # creates a password that looks "encrypted"
-
-                if self.login():
-                    self.mainPage = True
-                    self.Login = False
-
-                if self.exclusiveButton(330, 300, 400, 100):
-                    self.typing_username = False
-
-                if self.exclusiveButton(330, 300, 600, 100):
-                    self.typing_password = False
-
-                if self.clickableButton(330, 300, 400, 100):
-                    self.typing_username = True
-                    self.typing_password = False
-
-                if self.clickableButton(330, 300, 600, 100):
-                    self.typing_username = False
-                    self.typing_password = True
-
-                if self.typing_username:
-                    #self.Login = False  # ## comment out for password
-                    #self.mainPage = True  # ## comment out for password
-                    # ## foo
-                    pygame.event.set_blocked(1025)  # blocks mouse clicks from being detected
-                    pygame.event.set_blocked(1026)
-                    pygame.event.set_blocked(1024)  # blocks mouse movement to be detected
-                    pygame.event.set_blocked(769)  # blocks key up inputs KeyUp
-
-                    if self.input_text(self.event_list, self.username) is None:
-                        pass
-                    elif self.input_text(self.event_list, self.username) == "backspace":
-                        self.true_username = self.true_username[0:len(self.true_username) - 1]
-                    else:
-                        self.username = str(self.input_text(self.event_list, self.username))
-                        self.true_username += self.username
-                        pygame.event.set_allowed(769)  # allows key up inputs to be detected
-                        pygame.event.set_allowed(1024)  # allows mouse movement to be detected
-
-                if self.typing_password:
-                    pygame.event.set_blocked(769)  # blocks key up inputs KeyUp
-                    pygame.event.set_blocked(1024)  # blocks mouse movements to be detected
-                    pygame.event.set_blocked(1025)  # blocks mouse clicks to be detected
-                    pygame.event.set_blocked(1026)
-                    if self.input_text(self.event_list, self.password) is None:
-                        pass
-                    elif self.input_text(self.event_list, self.password) == "backspace":
-                        self.true_password = self.true_password[0:len(self.true_password) - 1]
-                    else:
-                        self.password = str(self.input_text(self.event_list, self.password))
-                        self.true_password += self.password
-                        pygame.event.set_allowed(1024)  # allows mouse movement to be detected
-                        pygame.event.set_allowed(769)  # allows key up inputs to be detected
-                pygame.event.set_allowed(1025)  # allows mouse clicks to be detected
-                pygame.event.set_allowed(1026)
             if self.mainPage:
-
                 font = pygame.font.SysFont("calibri", 30)
                 self.DrawButton(self.grey, 380, 200, 600, 80, "Solo Mode")
                 if self.clickableButton(380, 200, 600, 80):
