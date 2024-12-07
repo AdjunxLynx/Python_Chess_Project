@@ -4,10 +4,20 @@ import pygame, random
 import threading, time
 from copy import deepcopy
 #efficiency modules
-from multiprocessing import Pool
 from functools import lru_cache
+import ctypes
 #file modules
 import os, sys, atexit, json
+
+sys.setrecursionlimit(1000000000)
+
+dll_path = "C:\\Users\\kamil\\OneDrive\\Desktop\\Github\\Python_Chess_Project\\mylibrary.dll"
+mylib = ctypes.CDLL(dll_path)
+mylib.king_dead.argtypes = [ctypes.py_object]  # Pointer to array of C strings
+mylib.king_dead.restype = ctypes.c_bool
+
+
+
 
 def measure_time(func):
     def wrapper(*args, **kwargs):
@@ -18,8 +28,6 @@ def measure_time(func):
         print(f"{func.__name__} took {execution_time:.5f} ms to run.")
         return result
     return wrapper
-
-
 
 class ChessBot:
     def __init__(self):
@@ -32,7 +40,8 @@ class ChessBot:
             'queen': 9,
             'king': 999  # King has no value in terms of material
         }
-        self.max_depth = 10  # Maximum depth for recursive search
+        turn_depth = 3 # 3 moves into the future
+        self.max_depth = turn_depth * 2  # How many plies to look into (half moves)
         self.time_limit = 999999999 # Time limit in seconds for move calculation
         print(f"Using a recursion depth of {self.max_depth} ({round(self.max_depth/2)} moves deep)")
 
@@ -44,6 +53,7 @@ class ChessBot:
 
 
     #@measure_time
+    # ~ 0.002 ms
     def king_dead(self, board):
         """
         Check if both kings are present on the board.
@@ -51,27 +61,13 @@ class ChessBot:
                       values are pieces (e.g., "white_king").
         :return: True if either king is missing; False otherwise.
         """
-        kings = {"white_king": False, "black_king": False}
-
-        for piece in board.values():
-            if piece in kings:
-                kings[piece] = True
-                # Early exit if both kings are found
-                if all(kings.values()):
-                    return False
-
-        # If either king is missing, return True
-        return not all(kings.values())
+        result = mylib.king_dead(board)
+        return result
 
     #@measure_time
     def evaluate_board(self, board):
         """Evaluate the board and return a score."""
-        kings = [piece for piece in board.values() if "king" in piece]
-        if len(kings) < 2:
-            if "white_king" not in board.values():
-                return float('-inf')  # White king missing, white loses
-            if "black_king" not in board.values():
-                return float('inf')  # Black king missing, black loses
+
 
         score = 0
 
@@ -101,15 +97,19 @@ class ChessBot:
                 piece_value -= pawn_position_bonus.get(position, 0)
                 score -= piece_value
         #print(f"Score {score} found for player {self.player} on board {board}")
+
         return score
 
     def iterative_deepening(self, board, player):
         """Iterative deepening minimax."""
         global counter
-        counter = 0
+
         start_time = time.time()
         best_move = None
+
+
         for depth in range(1, self.max_depth + 1):
+            counter = 0
             try:
                 move, score = self.search_with_depth(board, player, depth, start_time)
                 if move is not None:
@@ -119,48 +119,49 @@ class ChessBot:
                 print(f"{('{:,}'.format(counter)) } positions searched in {self.time_limit} seconds for an average of {('{:,}'.format(counter / (time.time() - start_time) / 1000))} kNps")
                 break
 
-        print(
-            f"{('{:,}'.format(counter))} positions searched in {(time.time() - start_time)} seconds for an average of {('{:,}'.format(counter / (time.time() - start_time) / 1000))} kNps")
+        print(f"{('{:,}'.format(counter))} positions searched in {(time.time() - start_time)} seconds for an average of {('{:,}'.format(counter / (time.time() - start_time) / 1000))} kNps")
         print(f"Best move: {best_move} with score {score} found at depth: {depth}")
         self.clear_all_caches()
-        counter = 0
         return best_move
 
     #@measure_time
     def search_with_depth(self, board, player, depth, start_time):
         """Perform minimax search to a fixed depth."""
         legal_moves = self.generate_legal_moves(board, player)
-        best_score = float('-inf') if player == 'white' else float('inf')
+        best_score = float('-9999') if player == 'white' else float('9999')
+        alpha = float('-9999')
+        beta = float('9999')
         best_move = None
 
         is_maximizing = player == 'white'
 
         for move in legal_moves:
-            new_board = self.make_move(deepcopy(board), *move)
-            score = self.minimax(new_board, depth - 1, not is_maximizing, start_time)
-
+            score = self.minimax(self.make_move(board, *move), alpha, beta, depth, is_maximizing, start_time)
             if (is_maximizing and score > best_score) or (not is_maximizing and score < best_score):
                 best_score = score
                 best_move = move
 
         global counter
-        print(f"search with depth function called minimax {counter} times")
+        print(f"search with depth function called minimax {counter} times at depth {depth} for {(time.time() - start_time):.3f} seconds ({((counter / (time.time() - start_time))/1000):.3f}KNps)")
         return best_move, best_score
 
     #@measure_time
-    def minimax(self, board, depth, is_maximizing, start_time):
+    def minimax(self, board, alpha, beta, depth, is_maximizing, start_time):
         """Minimax algorithm with transposition table and timeout."""
         # Check for timeout
         global counter
         counter += 1
+
+
         if time.time() - start_time > self.time_limit:
             raise TimeoutError
 
+
         if self.king_dead(board):
             if is_maximizing:
-                return (float('-inf') + depth)  # Maximizing player lost their king
+                return float('-inf') # Maximizing player lost their king
             else:
-                return (float('inf') - depth)
+                return float('inf')
 
         # Base case: Evaluate board
         if depth == 0:
@@ -171,28 +172,25 @@ class ChessBot:
         legal_moves = self.generate_legal_moves(board, 'white' if is_maximizing else 'black')
         forced_mate = True
         if is_maximizing:
-            max_eval = float('-inf')
+            max_eval = float('-9999')
             for move in legal_moves:
-                new_board = self.make_move(deepcopy(board), *move)
-                eval = self.minimax(new_board, depth - 1, False, start_time)
-                if eval < float("inf"):  # Opponent has a move to escape mate
-                    forced_mate = False
-
+                new_board = self.make_move(board, *move)
+                eval = self.minimax(new_board, alpha, beta, depth - 1, False, start_time)
                 max_eval = max(max_eval, eval)
-            if forced_mate:
-                return float("inf") + depth  # Forced mate found
+                alpha = max(alpha, eval)
+                if beta <= alpha:
+                    break  # Beta cut-off
             return max_eval
 
         else:
-            min_eval = float('inf')
+            min_eval = float('9999')
             for move in legal_moves:
-                new_board = self.make_move(deepcopy(board), *move)
-                eval = self.minimax(new_board, depth - 1, True, start_time)
-                if eval > float("-inf"):  # Opponent has a move to escape mate
-                    forced_mate = False
+                new_board = self.make_move(board, *move)
+                eval = self.minimax(new_board,  alpha, beta, depth - 1,True, start_time)
                 min_eval = min(min_eval, eval)
-            if forced_mate:
-                return float("-inf") - depth  # Forced mate found
+                beta = min(beta, eval)
+                if beta <= alpha:
+                    break  # Beta cut-off
             return min_eval
 
     #@measure_time
@@ -204,31 +202,6 @@ class ChessBot:
                 break
         return king_position
 
-    #@measure_time
-    def is_king_in_check(self, simulated_board, player):
-        """Determine if the king is in check in a given board state."""
-        opponent = "white" if player == "black" else "black"
-        king_position = self.find_king(simulated_board, player)
-
-        for square, piece in simulated_board.items():
-            if piece.split("_")[0] == opponent:
-                piece_type = piece.split("_")[1]
-                # Check if opponent's piece attacks the king
-                for attack_move in self.generate_piece_moves(simulated_board, square, piece_type):
-                    if attack_move[1] == king_position:
-                        return True
-        return False
-
-    #@measure_time
-    def generate_piece_moves(self, simulated_board, square, player):
-        piece_moves = []
-        moves = self.generate_legal_moves(simulated_board, player, skip = True)
-        for move in moves:
-            if move[0] == square:
-                starting, ending = move
-                piece_moves.append((starting, ending))
-
-        return piece_moves
 
     @lru_cache(maxsize=None)
     #@measure_time
@@ -334,7 +307,7 @@ class ChessBot:
         for direction in directions:
             target_col, target_row = col + direction[0], row + direction[1]
             if self.is_within_bounds(target_col, target_row):
-                target_square = f"{chr(target_col + ord('a'))}{target_row + 1}"
+                target_square = f"{chr(target_col)}{target_row}"
                 if self.is_empty_square(board, target_square) or self.is_opponent_piece(board, target_square, player):
                     moves.append((square, target_square))
 
@@ -358,14 +331,58 @@ class ChessBot:
                     break  # Blocked by opponent piece
                 else:
                     break  # Blocked by own piece
-
         return moves
 
+    def generate_king_moves(self, board, square, col, row, directions, player):
+        moves = []
+        for direction in directions:
+            target_col, target_row = col + direction[0], row + direction[1]
+            if not self.is_within_bounds(target_col, target_row):
+                break
+
+            target_square = f"{chr(target_col + ord('a'))}{target_row + 1}"
+            if self.is_empty_square(board, target_square):
+                moves.append((square, target_square))  # Free move
+            elif self.is_opponent_piece(board, target_square, player):
+                moves.append((square, target_square))  # Capture
+                break  # Blocked by opponent piece
+            else:
+                break  # Blocked by own piece
+
+    def sort_moves_by_priority_and_distance(self, legal_moves, opponent_king_pos, piece_order):
+        """
+        Sorts the legal moves based on piece type priority and proximity to the opponent's king.
+
+        :param legal_moves: List of legal moves along with piece types and distances.
+        :param opponent_king_pos: The position of the opponent's king.
+        :param piece_order: A dictionary mapping piece types to priority for sorting.
+        :return: Sorted list of moves.
+        """
+        # Calculate distance to the opponent's king and sort by piece priority, then by distance
+        sorted_moves = []
+        print(legal_moves)
+        for moves in legal_moves:
+            piece_type, move = moves
+            print(moves)
+            # Calculate the distance to the opponent's king (Manhattan distance)
+            row_diff = abs(ord(move[1][1]) - ord(opponent_king_pos[1]))
+            col_diff = abs(ord(move[1][0]) - ord(opponent_king_pos[0]))
+            distance_to_king = row_diff + col_diff  # Manhattan distance
+
+            # Append the move with its piece priority and distance to the opponent's king
+            sorted_moves.append((piece_type, move, distance_to_king))
+
+        # Now, sort by piece priority first and then by distance to the opponent's king
+        sorted_moves.sort(key=lambda x: (piece_order[x[0]], x[2]))  # Sorting by piece and then by distance
+
+        # Return only the moves (sorted)
+        return [move[1] for move in sorted_moves]
 
     #@measure_time
     def generate_legal_moves(self, board, player):
         """Generate all pseudo-legal moves for the given player."""
         moves = []
+        piece_order = {"queen": 0, "rook": 1, "knight": 2, "bishop": 3, "pawn": 4}
         directions = {
             "bishop": [(1, 1), (1, -1), (-1, 1), (-1, -1)],
             "rook": [(1, 0), (-1, 0), (0, 1), (0, -1)],
@@ -373,13 +390,16 @@ class ChessBot:
             "king": [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
         }
 
+        opponent = "white" if player == "black" else "black"
+        opponent_king_pos = self.find_king(board, opponent)
+
         # Iterate through all pieces on the board
         for square, piece in board.items():
             piece_colour, piece_type = piece.split("_")
             if piece_colour != player:
                 continue  # Skip opponent's pieces
 
-            col, row = ord(square[0]) - ord('a'), int(square[1]) - 1  # Convert board notation to indices
+            col, row = ord(square[0]) - ord('a'), int(square[1])  # Convert board notation to indices
 
             if piece_type == "pawn":
                 moves.extend(self.generate_pawn_moves(board, square, col, row, player))
@@ -391,14 +411,16 @@ class ChessBot:
                 direction = directions[piece_type]
                 moves.extend(self.generate_sliding_piece_moves(board, square, col, row, direction, player))
 
+        #moves = self.sort_moves_by_priority_and_distance(moves, opponent_king_pos, piece_order)
         return moves
 
     def make_move(self, board, from_square, to_square):
         """Move a piece from one square to another."""
-        if from_square in board:
-            board[to_square] = board[from_square]  # Move the piece to the new square
-            del board[from_square]  # Remove the piece from its old square
-        return board
+        new_board = deepcopy(board)
+        if from_square in new_board:
+            new_board[to_square] = new_board[from_square]  # Move the piece to the new square
+            del new_board[from_square]  # Remove the piece from its old square
+        return new_board
 
 
 class ChessGame:
