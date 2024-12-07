@@ -1,0 +1,26 @@
+search with depth function called minimax 530 times at depth 1 for 0.008 seconds (67.300KNps)
+search with depth function called minimax 15,721 times at depth 2 for 0.248 seconds (63.360KNps)
+search with depth function called minimax 103,3942 times at depth 4 for 56.306 seconds (65.961KNps)
+search with depth function called minimax 17,062,894 times at depth 5 for 347.544 seconds (49.096KNps)
+
+minimax function searched 345 positions at depth 1 for 0.006 seconds (62.335KNps)
+minimax function searched 5,433 positions at depth 2 for 0.092 seconds (59.268KNps)
+minimax function searched 37,203 positions at depth 3 for 0.670 seconds (55.495KNps)
+minimax function searched 1,068,258 positions at depth 4 for 16.996 seconds (62.853KNps)
+minimax function searched 4,797,113 positions at depth 5 for 92.057 seconds (52.110KNps)
+
+minimax function searched 342 positions at depth 1 for 0.005 seconds (66.638KNps)
+minimax function searched 5,943 positions at depth 2 for 0.097 seconds (61.397KNps)
+minimax function searched 57,134 positions at depth 3 for 0.955 seconds (59.809KNps)
+minimax function searched 802,166 positions at depth 4 for 13.817 seconds (58.056KNps)
+minimax function searched 5,441,522 positions at depth 5 for 105.610 seconds (51.525KNps)
+minimax function searched 80,658,151 positions at depth 6 for 1326.296 seconds (60.815KNps)
+
+
+
+minimax function searched 906 positions at depth 1 for 0.014 seconds (0.894KNps)
+minimax function searched 2,429 positions at depth 2 for 0.021 seconds (2.379KNps)
+minimax function searched 13,097 positions at depth 3 for 0.124 seconds (11.651KNps)
+minimax function searched 149,095 positions at depth 4 for 1.393 seconds (62.315KNps)
+minimax function searched 321,677 positions at depth 5 for 2.992 seconds (80.578KNps)
+minimax function searched 8,154,361 positions at depth 6 for 74.668 seconds (107.766KNps)

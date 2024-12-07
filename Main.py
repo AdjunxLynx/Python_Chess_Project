@@ -31,15 +31,7 @@ def measure_time(func):
 
 class ChessBot:
     def __init__(self):
-        # Heatmap values for each piece type
-        self.heatmap = {
-            'pawn': 1,
-            'knight': 3,
-            'bishop': 3,
-            'rook': 5,
-            'queen': 9,
-            'king': 999  # King has no value in terms of material
-        }
+
         turn_depth = 3 # 3 moves into the future
         self.max_depth = turn_depth * 2  # How many plies to look into (half moves)
         self.time_limit = 999999999 # Time limit in seconds for move calculation
@@ -64,12 +56,23 @@ class ChessBot:
         result = mylib.king_dead(board)
         return result
 
+
+
     #@measure_time
-    def evaluate_board(self, board):
+    def evaluate_board(self, board, is_maximizing, depth):
         """Evaluate the board and return a score."""
 
+        if self.king_dead(board):
+            return float('10_000') - depth if is_maximizing else float('-inf') + depth
 
-        score = 0
+        # Heatmap values for each piece type
+        heatmap = {
+            'pawn': 1,
+            'knight': 3,
+            'bishop': 3,
+            'rook': 5,
+            'queen': 9,
+            'king': 0}  # King has no value in terms of material}
 
         #Positional heatmap for pawns (encourages central control)
         pawn_position_bonus = {
@@ -83,9 +86,11 @@ class ChessBot:
             "a8": 0.0, "b8": 0.0, "c8": 0.0, "d8": 0.0, "e8": 0.0, "f8": 0.0, "g8": 0.0, "h8": 0.0
         }
 
+        score = 0
+
         for position, piece in board.items():
             piece_type = piece.split("_")[1]
-            piece_value = self.heatmap.get(piece_type, 0)
+            piece_value = heatmap.get(piece_type, 0)
 
             # Adjust pawn scores based on position
             # Positive means white is winning
@@ -94,7 +99,8 @@ class ChessBot:
                     piece_value += pawn_position_bonus.get(position, 0)
                 score += piece_value
             else:
-                piece_value -= pawn_position_bonus.get(position, 0)
+                if piece_type == "pawn":
+                    piece_value -= pawn_position_bonus.get(position, 0)
                 score -= piece_value
         #print(f"Score {score} found for player {self.player} on board {board}")
 
@@ -102,95 +108,108 @@ class ChessBot:
 
     def iterative_deepening(self, board, player):
         """Iterative deepening minimax."""
-        global counter
+        global positions
 
         start_time = time.time()
         best_move = None
 
 
-        for depth in range(1, self.max_depth + 1):
-            counter = 0
+        for depth in range(1, self.max_depth ):
+            positions = 0
+            self.depth_time = time.time()
             try:
                 move, score = self.search_with_depth(board, player, depth, start_time)
                 if move is not None:
                     best_move = move
             except TimeoutError:
                 print("Time limit reached during search.")
-                print(f"{('{:,}'.format(counter)) } positions searched in {self.time_limit} seconds for an average of {('{:,}'.format(counter / (time.time() - start_time) / 1000))} kNps")
+                print(f"{('{:,}'.format(positions)) } positions searched in {self.time_limit} seconds for an average of {('{:,}'.format(positions / (time.time() - start_time) / 1000))} kNps")
                 break
 
-        print(f"{('{:,}'.format(counter))} positions searched in {(time.time() - start_time)} seconds for an average of {('{:,}'.format(counter / (time.time() - start_time) / 1000))} kNps")
         print(f"Best move: {best_move} with score {score} found at depth: {depth}")
-        self.clear_all_caches()
         return best_move
 
     #@measure_time
     def search_with_depth(self, board, player, depth, start_time):
         """Perform minimax search to a fixed depth."""
         legal_moves = self.generate_legal_moves(board, player)
-        best_score = float('-9999') if player == 'white' else float('9999')
+        is_maximizing = player == 'white'
+        best_score = float('-9999') if is_maximizing else float('9999')
         alpha = float('-9999')
         beta = float('9999')
         best_move = None
 
-        is_maximizing = player == 'white'
-
         for move in legal_moves:
+            if depth == 5:
+                if (move == ("c2", "g6")):
+                    if board == {'c2': 'white_bishop', 'd7': 'white_king', 'f6': 'black_pawn', 'f7': 'black_king',
+                                 'g7': 'black_pawn', 'e1': 'white_rook', 'h5': 'white_pawn'}:
+                        new_board = self.make_move(board, *move)  # Apply the move
+                        eval = self.minimax(new_board, alpha, beta, depth - 1, False, start_time)  # Recursively evaluate
+                        print(eval)
+
             score = self.minimax(self.make_move(board, *move), alpha, beta, depth, is_maximizing, start_time)
             if (is_maximizing and score > best_score) or (not is_maximizing and score < best_score):
                 best_score = score
                 best_move = move
 
-        global counter
-        print(f"search with depth function called minimax {counter} times at depth {depth} for {(time.time() - start_time):.3f} seconds ({((counter / (time.time() - start_time))/1000):.3f}KNps)")
+        global positions
+        print(f"minimax function searched {positions:,} positions at depth {depth} for {(time.time() - self.depth_time):.3f} seconds ({((positions / (time.time() - self.depth_time+1))/1000):.3f}KNps)")
         return best_move, best_score
+
 
     #@measure_time
     def minimax(self, board, alpha, beta, depth, is_maximizing, start_time):
         """Minimax algorithm with transposition table and timeout."""
+        global positions
+        positions += 1
+
         # Check for timeout
-        global counter
-        counter += 1
-
-
         if time.time() - start_time > self.time_limit:
             raise TimeoutError
 
-
-        if self.king_dead(board):
-            if is_maximizing:
-                return float('-inf') # Maximizing player lost their king
-            else:
-                return float('inf')
-
-        # Base case: Evaluate board
+        # Base case: Evaluate board when the depth is 0
         if depth == 0:
-            score = self.evaluate_board(board)
-            return score
+            return self.evaluate_board(board, is_maximizing, depth)
 
-        # Minimax logic
+        # Generate legal moves for the current player
         legal_moves = self.generate_legal_moves(board, 'white' if is_maximizing else 'black')
-        forced_mate = True
-        if is_maximizing:
-            max_eval = float('-9999')
+
+        if is_maximizing:  # White's turn to maximize the score
+            max_eval = -5000
+
             for move in legal_moves:
-                new_board = self.make_move(board, *move)
-                eval = self.minimax(new_board, alpha, beta, depth - 1, False, start_time)
-                max_eval = max(max_eval, eval)
-                alpha = max(alpha, eval)
-                if beta <= alpha:
-                    break  # Beta cut-off
+                if depth >= 5:
+                    if board == {'g6': 'white_bishop', 'd7': 'white_king', 'f6': 'black_pawn', 'f7': 'black_king',
+                                 'g7': 'black_pawn', 'e1': 'white_rook', 'h5': 'white_pawn'}:
+                        if move == ("g6", "f7"):
+                            print("mating move simulated")
+                            new_board = self.make_move(board, *move)  # Apply the move
+                            eval = self.minimax(new_board, alpha, beta, depth - 1, False,
+                                                start_time)  # Recursively evaluate
+
+                            print(depth)
+                            print(eval)
+                new_board = self.make_move(board, *move)  # Apply the move
+                eval = self.minimax(new_board, alpha, beta, depth - 1, False, start_time)  # Recursively evaluate
+                max_eval = max(max_eval, eval)  # Maximise the score
+                alpha = max(alpha, eval)  # Update alpha value (maximize alpha)
+
+                if beta <= alpha:  # Beta cut-off
+                    break  # Prune the branch as further exploration won't improve the score
             return max_eval
 
-        else:
-            min_eval = float('9999')
+        elif not is_maximizing:  # Black's turn to minimize the score
+            min_eval = 5000
             for move in legal_moves:
-                new_board = self.make_move(board, *move)
-                eval = self.minimax(new_board,  alpha, beta, depth - 1,True, start_time)
-                min_eval = min(min_eval, eval)
-                beta = min(beta, eval)
-                if beta <= alpha:
-                    break  # Beta cut-off
+                new_board = self.make_move(board, *move)  # Apply the move
+                eval = self.minimax(new_board, alpha, beta, depth - 1, True, start_time)  # Recursively evaluate
+                min_eval = min(min_eval, eval)  # Minimize the score
+                beta = min(beta, eval)  # Update beta value (minimize beta)
+
+                if beta <= alpha:  # Alpha cut-off
+                    break  # Prune the branch as further exploration won't improve the score
+
             return min_eval
 
     #@measure_time
@@ -201,7 +220,6 @@ class ChessBot:
                 king_position = square
                 break
         return king_position
-
 
     @lru_cache(maxsize=None)
     #@measure_time
@@ -349,49 +367,51 @@ class ChessBot:
             else:
                 break  # Blocked by own piece
 
-    def sort_moves_by_priority_and_distance(self, legal_moves, opponent_king_pos, piece_order):
+        return moves
+
+    def sort_moves_by_piece_priority(self, board, moves):
         """
-        Sorts the legal moves based on piece type priority and proximity to the opponent's king.
-
-        :param legal_moves: List of legal moves along with piece types and distances.
-        :param opponent_king_pos: The position of the opponent's king.
-        :param piece_order: A dictionary mapping piece types to priority for sorting.
-        :return: Sorted list of moves.
+        Sorts legal moves based on the priority of the piece making the move.
+        Priority order: queen > rook > bishop > knight > pawn > king.
         """
-        # Calculate distance to the opponent's king and sort by piece priority, then by distance
-        sorted_moves = []
-        print(legal_moves)
-        for moves in legal_moves:
-            piece_type, move = moves
-            print(moves)
-            # Calculate the distance to the opponent's king (Manhattan distance)
-            row_diff = abs(ord(move[1][1]) - ord(opponent_king_pos[1]))
-            col_diff = abs(ord(move[1][0]) - ord(opponent_king_pos[0]))
-            distance_to_king = row_diff + col_diff  # Manhattan distance
 
-            # Append the move with its piece priority and distance to the opponent's king
-            sorted_moves.append((piece_type, move, distance_to_king))
+        # Define piece priorities (lower numbers = higher priority)
+        piece_priority = {
+            "queen": 2,
+            "rook": 3,
+            "bishop": 4,
+            "knight": 5,
+            "pawn": 7,
+            "king": 6
+        }
 
-        # Now, sort by piece priority first and then by distance to the opponent's king
-        sorted_moves.sort(key=lambda x: (piece_order[x[0]], x[2]))  # Sorting by piece and then by distance
+        def move_priority(move):
+            from_square, to_square = move
+            piece = self.get_piece_at(board, from_square)
+            # Get the type of piece and fetch its priority
+            piece_type = self.get_piece_type(piece)
+            return piece_priority.get(piece_type.lower())
 
-        # Return only the moves (sorted)
-        return [move[1] for move in sorted_moves]
+        # Sort the moves by the priority of the piece making the move
+        return sorted(moves, key=move_priority)
+
+    def get_piece_at(self, board, square):
+        return board[square]
+
+    def get_piece_type(self, piece):
+        piece_colour, piece_type = piece.split("_")
+        return piece_type  # Assuming piece has a `type` attribute
 
     #@measure_time
     def generate_legal_moves(self, board, player):
         """Generate all pseudo-legal moves for the given player."""
         moves = []
-        piece_order = {"queen": 0, "rook": 1, "knight": 2, "bishop": 3, "pawn": 4}
-        directions = {
+        sliding_directions = {
             "bishop": [(1, 1), (1, -1), (-1, 1), (-1, -1)],
             "rook": [(1, 0), (-1, 0), (0, 1), (0, -1)],
-            "queen": [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)],
-            "king": [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+            "queen": [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
         }
-
-        opponent = "white" if player == "black" else "black"
-        opponent_king_pos = self.find_king(board, opponent)
+        king_directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
 
         # Iterate through all pieces on the board
         for square, piece in board.items():
@@ -399,7 +419,7 @@ class ChessBot:
             if piece_colour != player:
                 continue  # Skip opponent's pieces
 
-            col, row = ord(square[0]) - ord('a'), int(square[1])  # Convert board notation to indices
+            col, row = ord(square[0]) - ord('a'), int(square[1]) - 1  # Convert board notation to indices
 
             if piece_type == "pawn":
                 moves.extend(self.generate_pawn_moves(board, square, col, row, player))
@@ -407,11 +427,14 @@ class ChessBot:
             elif piece_type == "knight":
                 moves.extend(self.generate_knight_moves(board, square, col, row, player))
 
-            elif piece_type in {"bishop", "rook", "queen", "king"}:
-                direction = directions[piece_type]
-                moves.extend(self.generate_sliding_piece_moves(board, square, col, row, direction, player))
+            elif piece_type == "king":
+                moves.extend(self.generate_king_moves(board, square, col, row, king_directions, player))
 
-        #moves = self.sort_moves_by_priority_and_distance(moves, opponent_king_pos, piece_order)
+            elif piece_type in {"bishop", "rook", "queen"}:
+                sliding_direction = sliding_directions[piece_type]
+                moves.extend(self.generate_sliding_piece_moves(board, square, col, row, sliding_direction, player))
+
+        moves = self.sort_moves_by_piece_priority(board, moves)
         return moves
 
     def make_move(self, board, from_square, to_square):
@@ -447,7 +470,7 @@ class ChessGame:
 
     def reset(self):
         self.board = self.load_initial_position()
-        self.current_turn = "black" # random.choice(['white', 'black'])
+        self.current_turn = "white" # random.choice(['white', 'black'])
         print(f"{self.current_turn} goes first.")
         self.player_colour = self.current_turn
         if self.player_colour == 'white':
@@ -527,12 +550,21 @@ class ChessGame:
             if self.player_colour != self.current_turn:
                 move = self.bot.iterative_deepening(self.board, self.bot_colour)
                 self.make_move(*move)
+                if mylib.king_dead(self.board):
+                    winner = self.current_turn
+                    break
                 self.swap_turn()
+
 
             else:
                 move = self.bot.iterative_deepening(self.board, self.player_colour)
                 self.make_move(*move)
+                if mylib.king_dead(self.board):
+                    winner = self.current_turn
+                    break
                 self.swap_turn()
+
+        print(f"{winner} is the winner")
 
     def player_move_piece(board, player):
         """

@@ -1,20 +1,8 @@
-a1 white_rook
-a2 white_pawn
-b3 white_pawn
-c4 white_pawn
-d5 white_bishop
-e1 white_king
-f1 white_rook
-f6 white_pawn
-g4 white_pawn
-h3 white_pawn
+c2 white_bishop
+d7 white_king
+e1 white_rook
+h5 white_pawn
 
-
-
-a7 black_pawn
-c5 black_bishop
-h2 black_rook
-g5 black_pawn
-h4 black_pawn
-h7 black_bishop
-h8 black_king
+f6 black_pawn
+g7 black_pawn
+f7 black_king
